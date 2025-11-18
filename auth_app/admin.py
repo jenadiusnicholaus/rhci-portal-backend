@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import CustomUser
+from .lookups import CountryLookup
 
 
 @admin.register(CustomUser)
@@ -26,3 +27,12 @@ class CustomUserAdmin(BaseUserAdmin):
             'fields': ('email', 'user_type', 'password1', 'password2', 'is_staff', 'is_superuser'),
         }),
     )
+
+
+@admin.register(CountryLookup)
+class CountryLookupAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'display_order', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['name', 'code']
+    ordering = ['display_order', 'name']
+    list_editable = ['display_order', 'is_active']

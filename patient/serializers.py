@@ -50,6 +50,8 @@ class PatientTimelineSerializer(serializers.ModelSerializer):
 
 
 class PatientProfileSerializer(serializers.ModelSerializer):
+    from auth_app.serializers import CountryLookupSerializer
+    
     age = serializers.ReadOnlyField()
     funding_percentage = serializers.ReadOnlyField()
     funding_remaining = serializers.ReadOnlyField()
@@ -61,11 +63,12 @@ class PatientProfileSerializer(serializers.ModelSerializer):
     other_contributions = serializers.ReadOnlyField()
     cost_breakdowns = TreatmentCostBreakdownSerializer(many=True, read_only=True)
     timeline_events = PatientTimelineSerializer(many=True, read_only=True)
+    country = CountryLookupSerializer(source='country_fk', read_only=True)
     
     class Meta:
         model = PatientProfile
         fields = [
-            'id', 'user', 'full_name', 'age', 'gender', 'country',
+            'id', 'user', 'photo', 'full_name', 'age', 'gender', 'country',
             'short_description', 'long_story', 'medical_partner',
             'diagnosis', 'treatment_needed', 'treatment_date',
             # Funding summary
@@ -86,22 +89,23 @@ class PatientProfileSerializer(serializers.ModelSerializer):
             'user', 'age', 'medical_partner',
             'diagnosis', 'treatment_needed', 'treatment_date',
             'funding_required', 'funding_received', 'total_treatment_cost',
-            'cost_breakdowns', 'status', 'created_at', 'updated_at'
+            'cost_breakdowns', 'status', 'created_at', 'updated_at', 'country'
         ]
 
 
 class PatientRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     gender = serializers.ChoiceField(choices=PatientProfile.GENDER_CHOICES, write_only=True)
-    country = serializers.CharField(max_length=100, write_only=True)
+    country_id = serializers.IntegerField(write_only=True, help_text="ID of country from CountryLookup")
     short_description = serializers.CharField(max_length=255, write_only=True)
     long_story = serializers.CharField(write_only=True)
     date_of_birth = serializers.DateField(write_only=True)
+    photo = serializers.ImageField(write_only=True, required=False, allow_null=True)
     
     class Meta:
         model = User
         fields = ['email', 'password', 'first_name', 'last_name', 'date_of_birth', 
-                  'gender', 'country', 'short_description', 'long_story']
+                  'gender', 'country_id', 'photo', 'short_description', 'long_story']
     
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -118,33 +122,46 @@ class PatientRegisterSerializer(serializers.ModelSerializer):
             raise InvalidDateException()
         return value
     
+    def validate_country_id(self, value):
+        from auth_app.lookups import CountryLookup
+        if not CountryLookup.objects.filter(id=value, is_active=True).exists():
+            raise serializers.ValidationError("Invalid country ID or country is not active.")
+        return value
+    
     def create(self, validated_data):
-        # Extract profile-specific fields
+        from auth_app.lookups import CountryLookup
+        
+        # Extract patient profile fields
         gender = validated_data.pop('gender')
-        country = validated_data.pop('country')
+        country_id = validated_data.pop('country_id')
+        photo = validated_data.pop('photo', None)
         short_description = validated_data.pop('short_description')
         long_story = validated_data.pop('long_story')
+        date_of_birth = validated_data.pop('date_of_birth')
+        
+        # Get country lookup object
+        country_lookup = CountryLookup.objects.get(id=country_id)
         
         # Create user
         user = User.objects.create_user(
             **validated_data,
-            user_type='PATIENT'
+            user_type='PATIENT',
+            date_of_birth=date_of_birth
         )
         
-        # Create patient profile with registration data
-        PatientProfile.objects.create(
+        # Build full name from first and last name
+        full_name = f"{user.first_name} {user.last_name}".strip()
+        
+        # Create patient profile
+        profile = PatientProfile.objects.create(
             user=user,
-            full_name=f"{user.first_name} {user.last_name}".strip(),
+            photo=photo,
+            full_name=full_name,
             gender=gender,
-            country=country,
+            country=country_lookup.name,  # Keep old field for backward compatibility
+            country_fk=country_lookup,  # New FK field
             short_description=short_description,
-            long_story=long_story,
-            # Medical details filled by admin during verification
-            diagnosis='',
-            treatment_needed='',
-            funding_required=0.00,
-            total_treatment_cost=0.00,
-            status='SUBMITTED'
+            long_story=long_story
         )
         
         # TODO: Send verification email here
@@ -158,6 +175,8 @@ class AdminPatientReviewSerializer(serializers.ModelSerializer):
     Admin-only serializer for reviewing and editing patient profiles.
     Allows admin to edit medical details, funding, and story.
     """
+    from auth_app.serializers import CountryLookupSerializer
+    
     user_email = serializers.EmailField(source='user.email', read_only=True)
     user_verified = serializers.BooleanField(source='user.is_verified', read_only=True)
     patient_verified = serializers.BooleanField(source='user.is_patient_verified', read_only=True)
@@ -166,12 +185,13 @@ class AdminPatientReviewSerializer(serializers.ModelSerializer):
     funding_remaining = serializers.ReadOnlyField()
     cost_breakdowns = TreatmentCostBreakdownSerializer(many=True, read_only=True)
     timeline_events = PatientTimelineSerializer(many=True, read_only=True)
+    country = CountryLookupSerializer(source='country_fk', read_only=True)
     
     class Meta:
         model = PatientProfile
         fields = [
             'id', 'user', 'user_email', 'user_verified', 'patient_verified',
-            'full_name', 'age', 'gender', 'country',
+            'photo', 'full_name', 'age', 'gender', 'country',
             'short_description', 'long_story', 'medical_partner',
             'diagnosis', 'treatment_needed', 'treatment_date',
             'funding_required', 'funding_received', 'total_treatment_cost',
@@ -180,7 +200,7 @@ class AdminPatientReviewSerializer(serializers.ModelSerializer):
             'timeline_events', 'status', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'user', 'age', 'funding_percentage', 'funding_remaining', 
-                           'cost_breakdowns', 'timeline_events', 'created_at', 'updated_at']
+                           'cost_breakdowns', 'timeline_events', 'created_at', 'updated_at', 'country']
 
 
 class AdminPatientApprovalSerializer(serializers.Serializer):

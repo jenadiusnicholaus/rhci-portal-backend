@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from datetime import date
 from .models import CustomUser
+from .lookups import CountryLookup
 from patient.models import PatientProfile, ExpenseTypeLookup, TreatmentCostBreakdown, PatientTimeline
 from .exceptions import (
     EmailAlreadyExistsException,
@@ -11,6 +12,12 @@ from .exceptions import (
     PasswordTooShortException,
     InvalidDateException,
 )
+
+
+class CountryLookupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CountryLookup
+        fields = ['id', 'name', 'code', 'display_order']
 
 
 class PatientRegisterSerializer(serializers.ModelSerializer):

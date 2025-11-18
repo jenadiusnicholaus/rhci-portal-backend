@@ -13,8 +13,11 @@ User = get_user_model()
 
 
 class DonorProfileSerializer(serializers.ModelSerializer):
+    from auth_app.serializers import CountryLookupSerializer
+    
     age = serializers.ReadOnlyField()
     user_email = serializers.EmailField(source='user.email', read_only=True)
+    country = CountryLookupSerializer(source='country_fk', read_only=True)
     
     class Meta:
         model = DonorProfile
@@ -23,7 +26,7 @@ class DonorProfileSerializer(serializers.ModelSerializer):
             'country', 'website', 'birthday', 'age', 'workplace',
             'is_profile_private', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'user', 'user_email', 'age', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'user_email', 'age', 'created_at', 'updated_at', 'country']
     
     def validate_photo(self, value):
         if value:
@@ -46,7 +49,10 @@ class DonorProfileSerializer(serializers.ModelSerializer):
 
 class PublicDonorProfileSerializer(serializers.ModelSerializer):
     """Public-facing donor profile (respects privacy settings)"""
+    from auth_app.serializers import CountryLookupSerializer
+    
     age = serializers.ReadOnlyField()
+    country = CountryLookupSerializer(source='country_fk', read_only=True)
     
     class Meta:
         model = DonorProfile

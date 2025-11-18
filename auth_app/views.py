@@ -2,16 +2,17 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenRefreshView as BaseTokenRefreshView
 from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .serializers import (
     PatientRegisterSerializer, 
-    LoginSerializer, UserSerializer, PatientProfileSerializer
+    LoginSerializer, UserSerializer, PatientProfileSerializer, CountryLookupSerializer
 )
 from .models import CustomUser
-from patient.models import PatientProfile
+from .lookups import CountryLookup
+from patient.models import PatientProfile, ExpenseTypeLookup
+from patient.serializers import ExpenseTypeLookupSerializer
 from .exceptions import (
     PatientProfileNotFoundException,
     InsufficientPermissionsException
@@ -240,26 +241,41 @@ class PatientProfileListView(generics.ListAPIView):
         ).select_related('user')
 
 
-class TokenRefreshView(BaseTokenRefreshView):
+class CountryLookupListView(generics.ListAPIView):
     """
-    Refresh JWT access token using refresh token.
+    Get list of all available countries for selection.
     """
+    serializer_class = CountryLookupSerializer
+    permission_classes = [AllowAny]
+    queryset = CountryLookup.objects.filter(is_active=True)
+    
     @swagger_auto_schema(
-        operation_summary="Refresh Access Token",
-        operation_description="Obtain a new access token using a valid refresh token.",
-        tags=['1. Authentication & Registration'],
+        operation_summary="Get Countries List",
+        operation_description="Retrieve list of all available countries for user selection.",
+        tags=['10. Lookups'],
         responses={
-            200: openapi.Response(
-                'Token refreshed successfully',
-                openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'access': openapi.Schema(type=openapi.TYPE_STRING),
-                    }
-                )
-            ),
-            401: 'Unauthorized - Invalid or expired refresh token'
+            200: CountryLookupSerializer(many=True)
         }
     )
-    def post(self, request, *args, **kwargs):
-        return super().post(request, *args, **kwargs)
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+
+class ExpenseTypeLookupListView(generics.ListAPIView):
+    """
+    Get list of all available expense types for treatment cost breakdowns.
+    """
+    serializer_class = ExpenseTypeLookupSerializer
+    permission_classes = [AllowAny]
+    queryset = ExpenseTypeLookup.objects.filter(is_active=True)
+    
+    @swagger_auto_schema(
+        operation_summary="Get Expense Types List",
+        operation_description="Retrieve list of all available expense types for treatment cost breakdowns (e.g., Hospital Fees, Medical Staff, etc.).",
+        tags=['10. Lookups'],
+        responses={
+            200: ExpenseTypeLookupSerializer(many=True)
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)

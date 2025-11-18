@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from datetime import date
+from auth_app.lookups import CountryLookup
 
 
 class PatientProfile(models.Model):
@@ -23,9 +24,11 @@ class PatientProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='patient_profile')
     
     # Core Info (collected during registration)
+    photo = models.ImageField(upload_to='patient_photos/', null=True, blank=True, help_text="Patient profile photo")
     full_name = models.CharField(max_length=200)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    country = models.CharField(max_length=100)
+    country = models.CharField(max_length=100)  # Old field - keep for migration
+    country_fk = models.ForeignKey(CountryLookup, on_delete=models.PROTECT, null=True, blank=True, related_name='patients')  # New field
     
     # Story (collected during registration)
     short_description = models.CharField(max_length=255, help_text="Brief summary for card display")

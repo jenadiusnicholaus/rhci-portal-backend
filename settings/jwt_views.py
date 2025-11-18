@@ -3,21 +3,24 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView as BaseTokenRefreshView,
     TokenVerifyView as BaseTokenVerifyView,
 )
+from rest_framework import status
+from rest_framework.response import Response
+from django.contrib.auth import authenticate
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 
 class TokenObtainPairView(BaseTokenObtainPairView):
     """
-    Obtain JWT access and refresh tokens.
+    Obtain JWT access and refresh tokens with custom validation.
     """
     @swagger_auto_schema(
-        operation_summary="Obtain JWT Tokens",
-        operation_description="Authenticate with email and password to receive JWT access and refresh tokens.",
+        operation_summary="Login / Obtain JWT Tokens",
+        operation_description="Authenticate with email and password to receive JWT access and refresh tokens. Checks account status (active, verified).",
         tags=['1. Authentication & Registration'],
         responses={
             200: openapi.Response(
-                'Tokens obtained successfully',
+                'Login successful',
                 openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -26,10 +29,44 @@ class TokenObtainPairView(BaseTokenObtainPairView):
                     }
                 )
             ),
-            401: 'Unauthorized - Invalid credentials'
+            401: 'Unauthorized - Invalid credentials, account inactive, or email not verified'
         }
     )
     def post(self, request, *args, **kwargs):
+        # Get credentials
+        email = request.data.get('email')
+        password = request.data.get('password')
+        
+        if not email or not password:
+            return Response(
+                {'detail': 'Email and password are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Authenticate user
+        user = authenticate(email=email, password=password)
+        
+        if not user:
+            return Response(
+                {'detail': 'Invalid email or password.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Check if account is active
+        if not user.is_active:
+            return Response(
+                {'detail': 'Account is inactive. Please contact support.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Check if email is verified
+        if not user.is_verified:
+            return Response(
+                {'detail': 'Email not verified. Please check your inbox for verification email.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # If all checks pass, generate tokens
         return super().post(request, *args, **kwargs)
 
 
