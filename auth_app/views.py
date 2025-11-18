@@ -1,49 +1,21 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView as BaseTokenRefreshView
 from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .serializers import (
-    DonorRegisterSerializer, DonorProfileSerializer, PatientRegisterSerializer, 
+    PatientRegisterSerializer, 
     LoginSerializer, UserSerializer, PatientProfileSerializer
 )
-from .models import CustomUser, DonorProfile, PatientProfile
+from .models import CustomUser
+from patient.models import PatientProfile
 from .exceptions import (
-    DonorProfileNotFoundException,
     PatientProfileNotFoundException,
     InsufficientPermissionsException
 )
-
-
-class DonorRegisterView(generics.CreateAPIView):
-    """
-    Register a new donor account.
-    
-    Creates a donor user account and automatically creates an associated donor profile.
-    Email verification is required before the account can be used.
-    """
-    serializer_class = DonorRegisterSerializer
-    permission_classes = [AllowAny]
-    
-    @swagger_auto_schema(
-        operation_summary="Register as Donor",
-        operation_description="Create a new donor account with email and password. A donor profile is automatically created.",
-        tags=['1. Authentication & Registration'],
-        responses={
-            201: openapi.Response('Registration successful', UserSerializer),
-            400: 'Bad Request - Validation errors'
-        }
-    )
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response({
-            'message': 'Donor registration successful. Check your email to verify.',
-            'user': UserSerializer(user).data
-        }, status=status.HTTP_201_CREATED)
 
 
 class PatientRegisterView(generics.CreateAPIView):
@@ -127,15 +99,15 @@ class LoginView(generics.GenericAPIView):
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     """
-    Get or update current authenticated user's basic profile.
+    Get or update current authenticated user's basic profile (Admin only).
     """
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
     
     @swagger_auto_schema(
-        operation_summary="Get Current User Profile",
-        operation_description="Retrieve or update basic user information for the authenticated user.",
-        tags=['2. User Profile Management'],
+        operation_summary="[ADMIN] Get Current User Profile",
+        operation_description="[ADMIN ONLY] Retrieve or update basic user information for the authenticated admin.",
+        tags=['6. Admin - User Management'],
         responses={
             200: UserSerializer,
             401: 'Unauthorized'
@@ -145,118 +117,21 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         return super().get(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        operation_summary="Update Current User Profile",
-        tags=['2. User Profile Management'],
+        operation_summary="[ADMIN] Update Current User Profile",
+        tags=['6. Admin - User Management'],
     )
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Update Current User Profile (Full)",
+        tags=['6. Admin - User Management'],
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
     
     def get_object(self):
         return self.request.user
-
-
-class DonorProfileView(generics.RetrieveUpdateAPIView):
-    """
-    Donor's own profile management (authenticated access only)
-    GET: View own profile
-    PATCH/PUT: Update own profile
-    """
-    serializer_class = DonorProfileSerializer
-    permission_classes = [IsAuthenticated]
-    
-    @swagger_auto_schema(
-        operation_summary="Get My Donor Profile",
-        operation_description="Retrieve the authenticated donor's profile with all details.",
-        tags=['3. Donor Management (Private)'],
-        responses={
-            200: DonorProfileSerializer,
-            401: 'Unauthorized',
-            403: 'Forbidden - Not a donor account'
-        }
-    )
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
-    
-    @swagger_auto_schema(
-        operation_summary="Update My Donor Profile",
-        operation_description="Update donor profile details (photo, bio, privacy settings, etc.).",
-        tags=['3. Donor Management (Private)'],
-    )
-    def patch(self, request, *args, **kwargs):
-        return super().patch(request, *args, **kwargs)
-    
-    def get_object(self):
-        # Only donors can manage their own profile
-        if self.request.user.user_type != 'DONOR':
-            raise InsufficientPermissionsException(
-                detail="Only donors can access this endpoint. Please ensure you registered as a donor."
-            )
-        
-        if not hasattr(self.request.user, 'donor_profile'):
-            raise DonorProfileNotFoundException()
-        
-        return self.request.user.donor_profile
-
-
-class PublicDonorProfileView(generics.RetrieveAPIView):
-    """
-    Public donor profile view (read-only)
-    Anyone can view public profiles (is_profile_private=False)
-    Only the owner can view private profiles
-    """
-    serializer_class = DonorProfileSerializer
-    permission_classes = [AllowAny]
-    lookup_field = 'id'
-    
-    @swagger_auto_schema(
-        operation_summary="View Public Donor Profile",
-        operation_description="View a specific donor's public profile. Private profiles require owner authentication.",
-        tags=['4. Donor Management (Public)'],
-        responses={
-            200: DonorProfileSerializer,
-            403: 'Forbidden - Profile is private',
-            404: 'Not Found'
-        }
-    )
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
-    
-    def get_object(self):
-        profile_id = self.kwargs.get('id')
-        profile = get_object_or_404(DonorProfile, id=profile_id)
-        
-        # Check if profile is private
-        if profile.is_profile_private:
-            # Only the owner can view private profile
-            if not self.request.user.is_authenticated or self.request.user != profile.user:
-                from rest_framework.exceptions import PermissionDenied
-                raise PermissionDenied("This profile is private and can only be viewed by the owner.")
-        
-        return profile
-
-
-class DonorProfileListView(generics.ListAPIView):
-    """
-    List all public donor profiles
-    Only shows profiles where is_profile_private=False
-    """
-    serializer_class = DonorProfileSerializer
-    permission_classes = [AllowAny]
-    
-    @swagger_auto_schema(
-        operation_summary="List Public Donors",
-        operation_description="Browse all public donor profiles. Private profiles are excluded.",
-        tags=['4. Donor Management (Public)'],
-        responses={
-            200: DonorProfileSerializer(many=True)
-        }
-    )
-    def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
-    
-    def get_queryset(self):
-        # Only return public profiles
-        return DonorProfile.objects.filter(is_profile_private=False).select_related('user')
 
 
 class PatientProfileView(generics.RetrieveUpdateAPIView):
@@ -288,6 +163,14 @@ class PatientProfileView(generics.RetrieveUpdateAPIView):
     )
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="Update My Patient Profile (Full)",
+        operation_description="Update patient profile story and basic details (full update).",
+        tags=['5. Patient Management (Private)'],
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
     
     def get_object(self):
         # Only patients can manage their own profile
@@ -355,3 +238,28 @@ class PatientProfileListView(generics.ListAPIView):
         return PatientProfile.objects.filter(
             status__in=['PUBLISHED', 'AWAITING_FUNDING', 'FULLY_FUNDED']
         ).select_related('user')
+
+
+class TokenRefreshView(BaseTokenRefreshView):
+    """
+    Refresh JWT access token using refresh token.
+    """
+    @swagger_auto_schema(
+        operation_summary="Refresh Access Token",
+        operation_description="Obtain a new access token using a valid refresh token.",
+        tags=['1. Authentication & Registration'],
+        responses={
+            200: openapi.Response(
+                'Token refreshed successfully',
+                openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'access': openapi.Schema(type=openapi.TYPE_STRING),
+                    }
+                )
+            ),
+            401: 'Unauthorized - Invalid or expired refresh token'
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)

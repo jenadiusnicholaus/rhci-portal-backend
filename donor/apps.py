@@ -1,9 +1,9 @@
 from django.apps import AppConfig
 
 
-class PatientConfig(AppConfig):
+class DonorConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'patient'
+    name = 'donor'
     
     def ready(self):
-        import patient.signals  # noqa
+        import donor.signals  # noqa

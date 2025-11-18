@@ -6,8 +6,11 @@ from django.db.models import Q
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from .models import CustomUser
-from patient.models import PatientProfile, PatientTimeline
+
+from auth_app.models import CustomUser
+from auth_app.permissions import IsAdminUser
+from auth_app.exceptions import PatientProfileNotFoundException
+from .models import PatientProfile, PatientTimeline
 from .serializers import (
     AdminPatientReviewSerializer,
     AdminPatientApprovalSerializer,
@@ -15,8 +18,6 @@ from .serializers import (
     AdminTimelineEventSerializer,
     PatientProfileSerializer
 )
-from .permissions import IsAdminUser
-from .exceptions import PatientProfileNotFoundException
 
 
 # ============ ADMIN PATIENT REVIEW VIEWS ============
@@ -113,6 +114,20 @@ class AdminPatientDetailView(generics.RetrieveUpdateAPIView):
     )
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Edit Patient Profile (Full)",
+        operation_description="Full update of patient profile details including medical information, funding, and story.",
+        tags=['7. Admin - Patient Review & Management'],
+        responses={
+            200: AdminPatientReviewSerializer,
+            400: 'Bad Request - Validation errors',
+            403: 'Forbidden - Admin access required',
+            404: 'Not Found'
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
     
     def get_queryset(self):
         return PatientProfile.objects.all().select_related('user').prefetch_related(
@@ -332,6 +347,20 @@ class AdminTimelineEventUpdateView(generics.UpdateAPIView):
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
     
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Update Timeline Event (Full)",
+        operation_description="Full update of timeline event. Setting is_current_state=true will automatically unmark all other events.",
+        tags=['8. Admin - Timeline Management'],
+        responses={
+            200: AdminTimelineEventSerializer,
+            400: 'Bad Request - Validation errors',
+            403: 'Forbidden - Admin access required',
+            404: 'Not Found'
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+    
     def perform_update(self, serializer):
         # If marking as current state, unmark all other events
         if serializer.validated_data.get('is_current_state', False):
@@ -362,6 +391,9 @@ class AdminTimelineEventDeleteView(generics.DestroyAPIView):
             404: 'Not Found'
         }
     )
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+    
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         

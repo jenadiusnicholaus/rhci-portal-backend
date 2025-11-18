@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     
     # Local apps
     'auth_app',
+    'patient',
+    'donor',
 ]
 
 # Custom user model
@@ -188,6 +190,7 @@ REST_FRAMEWORK = {
 
 # Simple JWT Configuration
 from datetime import timedelta
+API_VERSION = 'v1.0'
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),

@@ -19,15 +19,12 @@ from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework import permissions
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView,
-)
+from .jwt_views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
 # API Information for Swagger
+API_VERSION = settings.API_VERSION
 api_info = openapi.Info(
     title="RHCI Portal API",
     default_version='v1.0.0',
@@ -76,6 +73,8 @@ Base URL: `/api/auth/`
     }
 )
 
+
+
 schema_view = get_schema_view(
     api_info,
     public=True,
@@ -91,12 +90,18 @@ urlpatterns = [
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     
     # JWT Authentication endpoints
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    path(f'api/{API_VERSION}/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path(f'api/{API_VERSION}/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path(f'api/{API_VERSION}/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     
     # Auth app endpoints
-    path('api/auth/', include('auth_app.urls')),
+    path(f'api/{API_VERSION}/auth/', include('auth_app.urls')),
+    
+    # Donor app endpoints
+    path(f'api/{API_VERSION}/donors/', include('donor.urls')),
+    
+    # Patient app endpoints
+    path(f'api/{API_VERSION}/patients/', include('patient.urls')),
     
     # DRF browsable API login/logout
     path('api-auth/', include('rest_framework.urls')),

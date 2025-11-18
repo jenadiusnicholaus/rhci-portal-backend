@@ -1,100 +1,15 @@
 from rest_framework import serializers
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model
 from datetime import date
-from .models import CustomUser
-from patient.models import PatientProfile, ExpenseTypeLookup, TreatmentCostBreakdown, PatientTimeline
-from .exceptions import (
-    EmailAlreadyExistsException,
-    InvalidCredentialsException,
-    EmailNotVerifiedException,
-    AccountInactiveException,
-    PasswordTooShortException,
-    InvalidDateException,
+
+from auth_app.exceptions import (
+    EmailAlreadyExistsException, PasswordTooShortException,
+    InvalidDateException, InvalidCredentialsException,
+    EmailNotVerifiedException, AccountInactiveException
 )
+from .models import PatientProfile, PatientTimeline, TreatmentCostBreakdown, ExpenseTypeLookup
 
-
-class PatientRegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
-    gender = serializers.ChoiceField(choices=PatientProfile.GENDER_CHOICES, write_only=True)
-    country = serializers.CharField(max_length=100, write_only=True)
-    short_description = serializers.CharField(max_length=255, write_only=True)
-    long_story = serializers.CharField(write_only=True)
-    date_of_birth = serializers.DateField(write_only=True)
-    
-    class Meta:
-        model = CustomUser
-        fields = ['email', 'password', 'first_name', 'last_name', 'date_of_birth', 
-                  'gender', 'country', 'short_description', 'long_story']
-    
-    def validate_email(self, value):
-        if CustomUser.objects.filter(email=value).exists():
-            raise EmailAlreadyExistsException()
-        return value
-    
-    def validate_password(self, value):
-        if len(value) < 8:
-            raise PasswordTooShortException()
-        return value
-    
-    def validate_date_of_birth(self, value):
-        if value > date.today():
-            raise InvalidDateException()
-        return value
-    
-    def create(self, validated_data):
-        # Extract profile-specific fields
-        gender = validated_data.pop('gender')
-        country = validated_data.pop('country')
-        short_description = validated_data.pop('short_description')
-        long_story = validated_data.pop('long_story')
-        
-        # Create user
-        user = CustomUser.objects.create_user(
-            **validated_data,
-            user_type='PATIENT'
-        )
-        
-        # Create patient profile with registration data
-        PatientProfile.objects.create(
-            user=user,
-            full_name=f"{user.first_name} {user.last_name}".strip(),
-            gender=gender,
-            country=country,
-            short_description=short_description,
-            long_story=long_story,
-            # Medical details filled by admin during verification
-            diagnosis='',
-            treatment_needed='',
-            funding_required=0.00,
-            total_treatment_cost=0.00,
-            status='SUBMITTED'
-        )
-        
-        # TODO: Send verification email here
-        return user
-
-
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
-    
-    def validate(self, data):
-        user = authenticate(email=data['email'], password=data['password'])
-        if not user:
-            raise InvalidCredentialsException()
-        if not user.is_active:
-            raise AccountInactiveException()
-        if not user.is_verified:
-            raise EmailNotVerifiedException()
-        return {'user': user}
-
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = ['id', 'email', 'user_type', 'first_name', 'last_name', 
-                  'is_verified', 'is_patient_verified', 'date_joined']
-        read_only_fields = ['email', 'user_type', 'is_verified', 'date_joined']
+User = get_user_model()
 
 
 class ExpenseTypeLookupSerializer(serializers.ModelSerializer):
@@ -173,6 +88,67 @@ class PatientProfileSerializer(serializers.ModelSerializer):
             'funding_required', 'funding_received', 'total_treatment_cost',
             'cost_breakdowns', 'status', 'created_at', 'updated_at'
         ]
+
+
+class PatientRegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=8)
+    gender = serializers.ChoiceField(choices=PatientProfile.GENDER_CHOICES, write_only=True)
+    country = serializers.CharField(max_length=100, write_only=True)
+    short_description = serializers.CharField(max_length=255, write_only=True)
+    long_story = serializers.CharField(write_only=True)
+    date_of_birth = serializers.DateField(write_only=True)
+    
+    class Meta:
+        model = User
+        fields = ['email', 'password', 'first_name', 'last_name', 'date_of_birth', 
+                  'gender', 'country', 'short_description', 'long_story']
+    
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise EmailAlreadyExistsException()
+        return value
+    
+    def validate_password(self, value):
+        if len(value) < 8:
+            raise PasswordTooShortException()
+        return value
+    
+    def validate_date_of_birth(self, value):
+        if value > date.today():
+            raise InvalidDateException()
+        return value
+    
+    def create(self, validated_data):
+        # Extract profile-specific fields
+        gender = validated_data.pop('gender')
+        country = validated_data.pop('country')
+        short_description = validated_data.pop('short_description')
+        long_story = validated_data.pop('long_story')
+        
+        # Create user
+        user = User.objects.create_user(
+            **validated_data,
+            user_type='PATIENT'
+        )
+        
+        # Create patient profile with registration data
+        PatientProfile.objects.create(
+            user=user,
+            full_name=f"{user.first_name} {user.last_name}".strip(),
+            gender=gender,
+            country=country,
+            short_description=short_description,
+            long_story=long_story,
+            # Medical details filled by admin during verification
+            diagnosis='',
+            treatment_needed='',
+            funding_required=0.00,
+            total_treatment_cost=0.00,
+            status='SUBMITTED'
+        )
+        
+        # TODO: Send verification email here
+        return user
 
 
 # ============ ADMIN SERIALIZERS ============
