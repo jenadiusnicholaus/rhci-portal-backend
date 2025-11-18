@@ -99,11 +99,9 @@ dmypy.json
 # Sphinx documentation
 docs/_build/
 
-# Documentation files (exclude README files)
-docs/DCEAN_TO_NPS_API_SAMPLE.md
-docs/DCEAN_TO_NPS_IMPLEMENTATION.md
-docs/MODEL_FIELDS_REFERENCE.md
-docs/POSTMAN_GUIDE.md
+# Keep docs/ folder (documentation is tracked)
+!docs/
+!docs/**/*.md
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -122,4 +120,8 @@ $RECYCLE.BIN/
 logs/*
 local-runserver.sh
 nohup.out
+
+# Exclude markdown files except in docs/
 *.md
+!docs/*.md
+!README.md
