@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
             name='country_fk',
             field=models.ForeignKey(
                 blank=True, 
-                db_column='country_id', 
+                db_column='country_fk_id', 
                 null=True, 
                 on_delete=django.db.models.deletion.PROTECT, 
                 related_name='donors', 
