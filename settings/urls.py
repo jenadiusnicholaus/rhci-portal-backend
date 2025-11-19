@@ -107,7 +107,13 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls')),
 ]
 
-# Serve media files in development
+# Serve media and static files
+# In development: Django's built-in server
+# In production: WhiteNoise will handle this automatically
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+else:
+    # In production, WhiteNoise serves static files automatically
+    # For media files, we still need to add the URL pattern
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
