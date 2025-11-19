@@ -27,8 +27,7 @@ class PatientProfile(models.Model):
     photo = models.ImageField(upload_to='patient_photos/', null=True, blank=True, help_text="Patient profile photo")
     full_name = models.CharField(max_length=200)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    country = models.CharField(max_length=100)  # Old field - keep for migration
-    country_fk = models.ForeignKey(CountryLookup, on_delete=models.PROTECT, null=True, blank=True, related_name='patients')  # New field
+    country_fk = models.ForeignKey(CountryLookup, on_delete=models.PROTECT, null=True, blank=True, related_name='patients', db_column='country_fk_id')  # References country_fk_id column in DB
     
     # Story (collected during registration)
     short_description = models.CharField(max_length=255, help_text="Brief summary for card display")

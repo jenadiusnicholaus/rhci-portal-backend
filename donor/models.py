@@ -13,8 +13,7 @@ class DonorProfile(models.Model):
     photo = models.ImageField(upload_to='donor_photos/', null=True, blank=True, help_text="Profile photo")
     full_name = models.CharField(max_length=200, blank=True, help_text="Full name for display")
     short_bio = models.CharField(max_length=60, blank=True, help_text="Short bio (max 60 characters)")
-    country = models.CharField(max_length=100, blank=True, db_column='country_id')  # Old field - DB column is country_id
-    country_fk = models.ForeignKey(CountryLookup, on_delete=models.PROTECT, null=True, blank=True, related_name='donors')  # New field
+    country_fk = models.ForeignKey(CountryLookup, on_delete=models.PROTECT, null=True, blank=True, related_name='donors', db_column='country_id')  # References country_id column in DB
     website = models.URLField(max_length=200, blank=True)
     birthday = models.DateField(null=True, blank=True)
     workplace = models.CharField(max_length=200, blank=True)
