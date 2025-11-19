@@ -34,7 +34,7 @@ class PatientProfileAdmin(admin.ModelAdmin):
     ]
     fieldsets = (
         ('User Info', {
-            'fields': ('user', 'full_name', 'age', 'gender', 'country')
+            'fields': ('user', 'full_name', 'age', 'gender', 'country_fk')
         }),
         ('Medical Details', {
             'fields': ('medical_partner', 'diagnosis', 'treatment_needed', 'treatment_date')

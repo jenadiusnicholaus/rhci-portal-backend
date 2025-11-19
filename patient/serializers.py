@@ -158,8 +158,7 @@ class PatientRegisterSerializer(serializers.ModelSerializer):
             photo=photo,
             full_name=full_name,
             gender=gender,
-            country=country_lookup.name,  # Keep old field for backward compatibility
-            country_fk=country_lookup,  # New FK field
+            country_fk=country_lookup,  # FK field
             short_description=short_description,
             long_story=long_story
         )
