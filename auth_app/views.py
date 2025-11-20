@@ -31,7 +31,7 @@ class PatientRegisterView(generics.CreateAPIView):
     @swagger_auto_schema(
         operation_summary="Register as Patient",
         operation_description="Create a new patient account with personal details and medical story. Requires admin approval before publication.",
-        tags=['1. Authentication & Registration'],
+        tags=['Authentication & Registration'],
         responses={
             201: openapi.Response('Registration successful', UserSerializer),
             400: 'Bad Request - Validation errors'
@@ -59,7 +59,7 @@ class LoginView(generics.GenericAPIView):
     @swagger_auto_schema(
         operation_summary="User Login",
         operation_description="Authenticate with email and password to receive JWT access and refresh tokens.",
-        tags=['1. Authentication & Registration'],
+        tags=['Authentication & Registration'],
         responses={
             200: openapi.Response(
                 'Login successful',
@@ -108,7 +108,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
     @swagger_auto_schema(
         operation_summary="[ADMIN] Get Current User Profile",
         operation_description="[ADMIN ONLY] Retrieve or update basic user information for the authenticated admin.",
-        tags=['7. Admin - User Management'],
+        tags=['Admin - User Management'],
         responses={
             200: UserSerializer,
             401: 'Unauthorized'
@@ -119,14 +119,14 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
     
     @swagger_auto_schema(
         operation_summary="[ADMIN] Update Current User Profile",
-        tags=['7. Admin - User Management'],
+        tags=['Admin - User Management'],
     )
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
     
     @swagger_auto_schema(
         operation_summary="[ADMIN] Update Current User Profile (Full)",
-        tags=['7. Admin - User Management'],
+        tags=['Admin - User Management'],
     )
     def put(self, request, *args, **kwargs):
         return super().put(request, *args, **kwargs)
@@ -147,7 +147,7 @@ class PatientProfileView(generics.RetrieveUpdateAPIView):
     @swagger_auto_schema(
         operation_summary="Get My Patient Profile",
         operation_description="Retrieve the authenticated patient's complete profile including timeline and funding details.",
-        tags=['6. Patient Management (Private)'],
+        tags=['Patient Management (Private)'],
         responses={
             200: PatientProfileSerializer,
             401: 'Unauthorized',
@@ -160,7 +160,7 @@ class PatientProfileView(generics.RetrieveUpdateAPIView):
     @swagger_auto_schema(
         operation_summary="Update My Patient Profile",
         operation_description="Update patient profile story and basic details.",
-        tags=['6. Patient Management (Private)'],
+        tags=['Patient Management (Private)'],
     )
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
@@ -168,7 +168,7 @@ class PatientProfileView(generics.RetrieveUpdateAPIView):
     @swagger_auto_schema(
         operation_summary="Update My Patient Profile (Full)",
         operation_description="Update patient profile story and basic details (full update).",
-        tags=['6. Patient Management (Private)'],
+        tags=['Patient Management (Private)'],
     )
     def put(self, request, *args, **kwargs):
         return super().put(request, *args, **kwargs)
@@ -198,7 +198,7 @@ class PublicPatientProfileView(generics.RetrieveAPIView):
     @swagger_auto_schema(
         operation_summary="View Patient Profile (Deprecated)",
         operation_description="This endpoint is deprecated. Use /api/auth/public/patients/{id}/ instead.",
-        tags=['8. Patient Management (Public)'],
+        tags=['Patient Management (Public)'],
         deprecated=True,
         responses={
             200: PatientProfileSerializer,
@@ -225,7 +225,7 @@ class PatientProfileListView(generics.ListAPIView):
     @swagger_auto_schema(
         operation_summary="List Patients (Deprecated)",
         operation_description="This endpoint is deprecated. Use /api/auth/public/patients/ instead for better filtering and pagination.",
-        tags=['8. Patient Management (Public)'],
+        tags=['Patient Management (Public)'],
         deprecated=True,
         responses={
             200: PatientProfileSerializer(many=True)
@@ -252,7 +252,7 @@ class CountryLookupListView(generics.ListAPIView):
     @swagger_auto_schema(
         operation_summary="Get Countries List",
         operation_description="Retrieve list of all available countries for user selection.",
-        tags=['12. Lookups'],
+        tags=['Lookups'],
         responses={
             200: CountryLookupSerializer(many=True)
         }
@@ -272,7 +272,7 @@ class ExpenseTypeLookupListView(generics.ListAPIView):
     @swagger_auto_schema(
         operation_summary="Get Expense Types List",
         operation_description="Retrieve list of all available expense types for treatment cost breakdowns (e.g., Hospital Fees, Medical Staff, etc.).",
-        tags=['12. Lookups'],
+        tags=['Lookups'],
         responses={
             200: ExpenseTypeLookupSerializer(many=True)
         }

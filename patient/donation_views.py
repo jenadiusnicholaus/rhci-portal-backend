@@ -28,7 +28,7 @@ class PatientDonationAmountsView(generics.ListAPIView):
         
         Returns active donation options sorted by display order.
         """,
-        tags=['11. Public - Patient Profiles'],
+        tags=['Public - Patient Profiles'],
         responses={
             200: openapi.Response(
                 description="List of donation amount options",
@@ -60,7 +60,7 @@ class AdminDonationAmountListCreateView(generics.ListCreateAPIView):
     @swagger_auto_schema(
         operation_summary="List Patient Donation Amounts (Admin)",
         operation_description="Get all donation amount options configured for a specific patient, including inactive ones.",
-        tags=['9. Admin - Patient Review & Management'],
+        tags=['Admin - Patient Review & Management'],
         responses={
             200: DonationAmountOptionSerializer(many=True)
         }
@@ -71,7 +71,7 @@ class AdminDonationAmountListCreateView(generics.ListCreateAPIView):
     @swagger_auto_schema(
         operation_summary="Create Donation Amount Option (Admin)",
         operation_description="Add a new suggested donation amount for a patient.",
-        tags=['9. Admin - Patient Review & Management'],
+        tags=['Admin - Patient Review & Management'],
         request_body=DonationAmountOptionCreateSerializer,
         responses={
             201: DonationAmountOptionSerializer,
@@ -112,7 +112,7 @@ class AdminDonationAmountDetailView(generics.RetrieveUpdateDestroyAPIView):
     @swagger_auto_schema(
         operation_summary="Get Donation Amount Details (Admin)",
         operation_description="Retrieve details of a specific donation amount option.",
-        tags=['9. Admin - Patient Review & Management'],
+        tags=['Admin - Patient Review & Management'],
         responses={
             200: DonationAmountOptionSerializer,
             404: 'Not Found'
@@ -124,7 +124,7 @@ class AdminDonationAmountDetailView(generics.RetrieveUpdateDestroyAPIView):
     @swagger_auto_schema(
         operation_summary="Update Donation Amount (Admin)",
         operation_description="Update a donation amount option (amount, order, active status, etc.).",
-        tags=['9. Admin - Patient Review & Management'],
+        tags=['Admin - Patient Review & Management'],
         request_body=DonationAmountOptionCreateSerializer,
         responses={
             200: DonationAmountOptionSerializer,
@@ -138,7 +138,7 @@ class AdminDonationAmountDetailView(generics.RetrieveUpdateDestroyAPIView):
     @swagger_auto_schema(
         operation_summary="Partially Update Donation Amount (Admin)",
         operation_description="Partially update a donation amount option.",
-        tags=['9. Admin - Patient Review & Management'],
+        tags=['Admin - Patient Review & Management'],
         request_body=DonationAmountOptionCreateSerializer,
         responses={
             200: DonationAmountOptionSerializer,
@@ -152,7 +152,7 @@ class AdminDonationAmountDetailView(generics.RetrieveUpdateDestroyAPIView):
     @swagger_auto_schema(
         operation_summary="Delete Donation Amount (Admin)",
         operation_description="Delete a donation amount option.",
-        tags=['9. Admin - Patient Review & Management'],
+        tags=['Admin - Patient Review & Management'],
         responses={
             204: 'Deleted successfully',
             404: 'Not Found'
@@ -185,7 +185,7 @@ class AdminBulkCreateDonationAmountsView(APIView):
         
         Amounts are rounded to nearest $5 or $10 for clean values.
         """,
-        tags=['9. Admin - Patient Review & Management'],
+        tags=['Admin - Patient Review & Management'],
         responses={
             201: openapi.Response(
                 description="Donation amounts created successfully",

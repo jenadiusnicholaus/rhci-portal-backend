@@ -30,7 +30,7 @@ class PublicCampaignListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        tags=['13. Campaigns (Public)'],
+        tags=['Campaigns (Public)'],
         operation_summary="List Active Campaigns",
         operation_description="""
         Browse all active campaigns.
@@ -64,7 +64,7 @@ class PublicCampaignDetailView(generics.RetrieveAPIView):
     lookup_field = 'id'
     
     @swagger_auto_schema(
-        tags=['13. Campaigns (Public)'],
+        tags=['Campaigns (Public)'],
         operation_summary="View Campaign Details",
         operation_description="""
         View detailed information about a campaign.
@@ -102,7 +102,7 @@ class MyCampaignsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        tags=['14. Campaigns (Launcher)'],
+        tags=['Campaigns (Launcher)'],
         operation_summary="My Campaigns",
         operation_description="""
         List all campaigns created by authenticated user.
@@ -131,7 +131,7 @@ class CreateCampaignView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        tags=['14. Campaigns (Launcher)'],
+        tags=['Campaigns (Launcher)'],
         operation_summary="Create Campaign",
         operation_description="""
         Create a new campaign.
@@ -172,7 +172,7 @@ class UpdateCampaignView(generics.UpdateAPIView):
     lookup_field = 'id'
     
     @swagger_auto_schema(
-        tags=['14. Campaigns (Launcher)'],
+        tags=['Campaigns (Launcher)'],
         operation_summary="Update Campaign",
         operation_description="""
         Update own campaign.
@@ -211,7 +211,7 @@ class SubmitCampaignForReviewView(APIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        tags=['14. Campaigns (Launcher)'],
+        tags=['Campaigns (Launcher)'],
         operation_summary="Submit Campaign for Review",
         operation_description="""
         Submit campaign for admin review.
@@ -250,7 +250,7 @@ class UploadCampaignPhotoView(generics.CreateAPIView):
     parser_classes = [MultiPartParser, FormParser]
     
     @swagger_auto_schema(
-        tags=['14. Campaigns (Launcher)'],
+        tags=['Campaigns (Launcher)'],
         operation_summary="Upload Campaign Photo",
         operation_description="""
         Upload a photo to campaign.
@@ -284,7 +284,7 @@ class PostCampaignUpdateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        tags=['14. Campaigns (Launcher)'],
+        tags=['Campaigns (Launcher)'],
         operation_summary="Post Campaign Update",
         operation_description="""
         Post an update to campaign.
@@ -321,7 +321,7 @@ class AdminCampaignListView(generics.ListAPIView):
     queryset = Campaign.objects.all().prefetch_related('photos', 'payment_methods').order_by('-created_at')
     
     @swagger_auto_schema(
-        tags=['15. Admin - Campaigns'],
+        tags=['Admin - Campaigns'],
         operation_summary="List All Campaigns (Admin)",
         operation_description="""
         List all campaigns in the system.
@@ -365,7 +365,7 @@ class AdminCampaignDetailView(generics.RetrieveUpdateAPIView):
     lookup_field = 'id'
     
     @swagger_auto_schema(
-        tags=['15. Admin - Campaigns'],
+        tags=['Admin - Campaigns'],
         operation_summary="Get/Update Campaign (Admin)",
         operation_description="""
         Get or update campaign details.
@@ -389,7 +389,7 @@ class AdminCampaignDetailView(generics.RetrieveUpdateAPIView):
         return super().get(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        tags=['15. Admin - Campaigns'],
+        tags=['Admin - Campaigns'],
         operation_summary="Update Campaign (Admin)"
     )
     def patch(self, request, *args, **kwargs):
@@ -403,7 +403,7 @@ class AdminApproveCampaignView(APIView):
     permission_classes = [IsAdminUser]
     
     @swagger_auto_schema(
-        tags=['15. Admin - Campaigns'],
+        tags=['Admin - Campaigns'],
         operation_summary="Approve Campaign (Admin)",
         operation_description="""
         Approve campaign and assign payment methods.
@@ -474,7 +474,7 @@ class AdminRejectCampaignView(APIView):
     permission_classes = [IsAdminUser]
     
     @swagger_auto_schema(
-        tags=['15. Admin - Campaigns'],
+        tags=['Admin - Campaigns'],
         operation_summary="Reject Campaign (Admin)",
         operation_description="""
         Reject campaign with reason.
@@ -520,7 +520,7 @@ class AdminActivateCampaignView(APIView):
     permission_classes = [IsAdminUser]
     
     @swagger_auto_schema(
-        tags=['15. Admin - Campaigns'],
+        tags=['Admin - Campaigns'],
         operation_summary="Activate Campaign (Admin)",
         operation_description="""
         Activate approved campaign to make it publicly visible.
@@ -558,7 +558,7 @@ class AdminPaymentMethodListCreateView(generics.ListCreateAPIView):
     queryset = PaymentMethod.objects.all().order_by('display_order', 'name')
     
     @swagger_auto_schema(
-        tags=['16. Admin - Payment Methods'],
+        tags=['Admin - Payment Methods'],
         operation_summary="List Payment Methods (Admin)",
         operation_description="""
         List all payment methods.
@@ -576,7 +576,7 @@ class AdminPaymentMethodListCreateView(generics.ListCreateAPIView):
         return super().get(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        tags=['16. Admin - Payment Methods'],
+        tags=['Admin - Payment Methods'],
         operation_summary="Create Payment Method (Admin)",
         operation_description="""
         Create a new payment method.
@@ -607,21 +607,21 @@ class AdminPaymentMethodDetailView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field = 'id'
     
     @swagger_auto_schema(
-        tags=['16. Admin - Payment Methods'],
+        tags=['Admin - Payment Methods'],
         operation_summary="Get Payment Method (Admin)"
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        tags=['16. Admin - Payment Methods'],
+        tags=['Admin - Payment Methods'],
         operation_summary="Update Payment Method (Admin)"
     )
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        tags=['16. Admin - Payment Methods'],
+        tags=['Admin - Payment Methods'],
         operation_summary="Delete Payment Method (Admin)"
     )
     def delete(self, request, *args, **kwargs):

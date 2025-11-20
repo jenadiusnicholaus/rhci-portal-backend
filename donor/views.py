@@ -32,7 +32,7 @@ class DonorRegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        tags=['1. Authentication & Registration'],
+        tags=['Authentication & Registration'],
         operation_summary="Register as Donor",
         operation_description="""
         Register a new donor account.
@@ -67,7 +67,7 @@ class DonorProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated, IsDonorOwner]
     
     @swagger_auto_schema(
-        tags=['2. Donor Management (Private)'],
+        tags=['Donor Management (Private)'],
         operation_summary="Get Own Donor Profile",
         operation_description="""
         Retrieve the authenticated donor's own profile.
@@ -87,7 +87,7 @@ class DonorProfileView(generics.RetrieveUpdateAPIView):
         return self.retrieve(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        tags=['2. Donor Management (Private)'],
+        tags=['Donor Management (Private)'],
         operation_summary="Update Own Donor Profile",
         operation_description="""
         Update the authenticated donor's own profile.
@@ -110,7 +110,7 @@ class DonorProfileView(generics.RetrieveUpdateAPIView):
     
     @swagger_auto_schema(
         operation_summary="Update Own Donor Profile (Full)",
-        tags=['2. Donor Management (Private)'],
+        tags=['Donor Management (Private)'],
         operation_description="""
         Full update of the authenticated donor's profile.
         
@@ -147,7 +147,7 @@ class PublicDonorProfileView(generics.RetrieveAPIView):
     lookup_field = 'id'
     
     @swagger_auto_schema(
-        tags=['3. Donor Management (Public)'],
+        tags=['Donor Management (Public)'],
         operation_summary="View Public Donor Profile",
         operation_description="""
         View a donor's public profile (if not private).
@@ -174,7 +174,7 @@ class DonorProfileListView(generics.ListAPIView):
     queryset = DonorProfile.objects.filter(is_profile_private=False)
     
     @swagger_auto_schema(
-        tags=['3. Donor Management (Public)'],
+        tags=['Donor Management (Public)'],
         operation_summary="List Public Donor Profiles",
         operation_description="""
         Browse all public donor profiles.
@@ -204,7 +204,7 @@ class DonationCreateView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        tags=['4. Donations'],
+        tags=['Donations'],
         operation_summary="Create Donation",
         operation_description="""
         Create a new donation (anonymous or authenticated).
@@ -284,7 +284,7 @@ class MyDonationsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        tags=['4. Donations'],
+        tags=['Donations'],
         operation_summary="My Donations",
         operation_description="""
         List all donations made by the authenticated user.
@@ -317,7 +317,7 @@ class DonationDetailView(generics.RetrieveAPIView):
     lookup_field = 'id'
     
     @swagger_auto_schema(
-        tags=['4. Donations'],
+        tags=['Donations'],
         operation_summary="Get Donation Details",
         operation_description="""
         Get detailed information about a specific donation.
@@ -354,7 +354,7 @@ class AdminDonationListView(generics.ListAPIView):
     queryset = Donation.objects.all().select_related('patient', 'donor').order_by('-created_at')
     
     @swagger_auto_schema(
-        tags=['5. Admin - Donations'],
+        tags=['Admin - Donations'],
         operation_summary="List All Donations (Admin)",
         operation_description="""
         List all donations in the system.
@@ -409,7 +409,7 @@ class AdminDonationDetailView(generics.RetrieveUpdateAPIView):
     lookup_field = 'id'
     
     @swagger_auto_schema(
-        tags=['5. Admin - Donations'],
+        tags=['Admin - Donations'],
         operation_summary="Get/Update Donation (Admin)",
         operation_description="""
         Get or update donation details.
@@ -434,7 +434,7 @@ class AdminDonationDetailView(generics.RetrieveUpdateAPIView):
         return super().get(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        tags=['5. Admin - Donations'],
+        tags=['Admin - Donations'],
         operation_summary="Update Donation (Admin)",
         responses={
             200: openapi.Response(
@@ -453,7 +453,7 @@ class AdminDonationDetailView(generics.RetrieveUpdateAPIView):
         return super().put(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        tags=['5. Admin - Donations'],
+        tags=['Admin - Donations'],
         operation_summary="Update Donation (Admin)",
         responses={
             200: openapi.Response(
@@ -480,7 +480,7 @@ class PatientDonationsView(generics.ListAPIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        tags=['4. Donations'],
+        tags=['Donations'],
         operation_summary="List Patient Donations",
         operation_description="""
         List all completed donations for a specific patient.

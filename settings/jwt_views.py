@@ -17,7 +17,7 @@ class TokenObtainPairView(BaseTokenObtainPairView):
     @swagger_auto_schema(
         operation_summary="Login / Obtain JWT Tokens",
         operation_description="Authenticate with email and password to receive JWT access and refresh tokens. Checks account status (active, verified).",
-        tags=['1. Authentication & Registration'],
+        tags=['Authentication & Registration'],
         responses={
             200: openapi.Response(
                 'Login successful',
@@ -77,7 +77,7 @@ class TokenRefreshView(BaseTokenRefreshView):
     @swagger_auto_schema(
         operation_summary="Refresh Access Token",
         operation_description="Obtain a new access token using a valid refresh token.",
-        tags=['1. Authentication & Registration'],
+        tags=['Authentication & Registration'],
         responses={
             200: openapi.Response(
                 'Token refreshed successfully',
@@ -102,7 +102,7 @@ class TokenVerifyView(BaseTokenVerifyView):
     @swagger_auto_schema(
         operation_summary="Verify Token",
         operation_description="Verify if a given token is valid and not expired.",
-        tags=['1. Authentication & Registration'],
+        tags=['Authentication & Registration'],
         responses={
             200: openapi.Response('Token is valid', openapi.Schema(type=openapi.TYPE_OBJECT)),
             401: 'Unauthorized - Invalid or expired token'

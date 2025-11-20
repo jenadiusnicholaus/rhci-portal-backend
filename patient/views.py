@@ -21,7 +21,7 @@ class PatientRegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        tags=['1. Authentication & Registration'],
+        tags=['Authentication & Registration'],
         operation_summary="Register as Patient",
         operation_description="""
         Register a new patient account with profile information.
@@ -57,7 +57,7 @@ class PatientProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated, IsPatientOwner]
     
     @swagger_auto_schema(
-        tags=['6. Patient Management (Private)'],
+        tags=['Patient Management (Private)'],
         operation_summary="Get Own Patient Profile",
         operation_description="""
         Retrieve the authenticated patient's own profile.
@@ -82,7 +82,7 @@ class PatientProfileView(generics.RetrieveUpdateAPIView):
         return self.retrieve(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        tags=['6. Patient Management (Private)'],
+        tags=['Patient Management (Private)'],
         operation_summary="Update Own Patient Profile",
         operation_description="""
         Update the authenticated patient's own profile.
@@ -110,7 +110,7 @@ class PatientProfileView(generics.RetrieveUpdateAPIView):
     
     @swagger_auto_schema(
         operation_summary="Update Own Patient Profile (Full)",
-        tags=['6. Patient Management (Private)'],
+        tags=['Patient Management (Private)'],
         operation_description="""
         Full update of the authenticated patient's profile.
         
