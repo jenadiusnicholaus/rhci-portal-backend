@@ -177,6 +177,49 @@ class TreatmentCostBreakdown(models.Model):
         return f"{self.patient_profile.full_name} - {self.expense_type.name}: ${self.amount}"
 
 
+class DonationAmountOption(models.Model):
+    """
+    Suggested donation amounts for quick selection (e.g., $10, $28, $56, $150)
+    Allows admins to configure donation amount buttons for each patient
+    """
+    patient_profile = models.ForeignKey(
+        PatientProfile,
+        on_delete=models.CASCADE,
+        related_name='donation_amount_options'
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Suggested donation amount"
+    )
+    display_order = models.IntegerField(
+        default=0,
+        help_text="Order to display (lower numbers first)"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Show this option to donors"
+    )
+    is_recommended = models.BooleanField(
+        default=False,
+        help_text="Highlight this amount as recommended"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'patient_donationamountoption'
+        ordering = ['patient_profile', 'display_order', 'amount']
+        verbose_name = 'Donation Amount Option'
+        verbose_name_plural = 'Donation Amount Options'
+        unique_together = ['patient_profile', 'amount']
+    
+    def __str__(self):
+        recommended = " (Recommended)" if self.is_recommended else ""
+        return f"{self.patient_profile.full_name} - ${self.amount}{recommended}"
+
+
 class PatientTimeline(models.Model):
     """
     Timeline events for patient journey from submission to treatment completion
@@ -262,3 +305,8 @@ class PatientTimeline(models.Model):
         if self.event_date:
             return self.event_date > date.today()
         return False
+
+
+# Import donation models
+# Donation models are now in the donor app
+# from donor.models import Donation, DonationReceipt, DonationComment

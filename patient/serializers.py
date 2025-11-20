@@ -7,7 +7,11 @@ from auth_app.exceptions import (
     InvalidDateException, InvalidCredentialsException,
     EmailNotVerifiedException, AccountInactiveException
 )
-from .models import PatientProfile, PatientTimeline, TreatmentCostBreakdown, ExpenseTypeLookup
+from .models import (
+    PatientProfile, PatientTimeline, TreatmentCostBreakdown, 
+    ExpenseTypeLookup, DonationAmountOption
+)
+from donor.models import Donation, DonationReceipt, DonationComment
 
 User = get_user_model()
 
@@ -26,6 +30,38 @@ class TreatmentCostBreakdownSerializer(serializers.ModelSerializer):
         model = TreatmentCostBreakdown
         fields = ['id', 'expense_type', 'expense_type_name', 'expense_type_slug', 'amount', 'notes', 'created_at']
         read_only_fields = ['created_at']
+
+
+class DonationAmountOptionSerializer(serializers.ModelSerializer):
+    """Serializer for donation amount options (read-only for public/donor views)"""
+    
+    class Meta:
+        model = DonationAmountOption
+        fields = [
+            'id', 'amount', 'display_order', 'is_active', 
+            'is_recommended', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class DonationAmountOptionCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating/updating donation amount options (admin only)"""
+    
+    class Meta:
+        model = DonationAmountOption
+        fields = ['amount', 'display_order', 'is_active', 'is_recommended']
+    
+    def validate_amount(self, value):
+        """Ensure amount is positive"""
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than 0")
+        return value
+    
+    def validate_display_order(self, value):
+        """Ensure display order is non-negative"""
+        if value < 0:
+            raise serializers.ValidationError("Display order cannot be negative")
+        return value
 
 
 class PatientTimelineSerializer(serializers.ModelSerializer):
@@ -260,3 +296,126 @@ class AdminBulkTimelineCreateSerializer(serializers.Serializer):
     """
     patient_profile_id = serializers.IntegerField()
     events = AdminTimelineEventSerializer(many=True)
+
+
+# ============ DONATION SERIALIZERS ============
+
+class DonationCreateSerializer(serializers.Serializer):
+    """
+    Serializer for creating a new donation (both anonymous and authenticated)
+    """
+    # Donor information (for anonymous donations)
+    is_anonymous = serializers.BooleanField(default=False)
+    anonymous_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    anonymous_email = serializers.EmailField(required=False, allow_blank=True)
+    
+    # Patient selection (optional)
+    patient_id = serializers.IntegerField(required=False, allow_null=True, help_text="Specific patient to donate to, or null for general donation")
+    
+    # Donation details
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=1.00)
+    donation_type = serializers.ChoiceField(
+        choices=[('ONE_TIME', 'One-time Donation'), ('MONTHLY', 'Monthly Recurring')],
+        default='ONE_TIME'
+    )
+    
+    # Optional fields
+    message = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+    dedication = serializers.CharField(required=False, allow_blank=True, max_length=200)
+    
+    # Payment information (will be added by payment processor)
+    payment_method = serializers.CharField(required=False, allow_blank=True)
+    
+    def validate(self, data):
+        """Validate donation data"""
+        # If anonymous, require either name or email
+        if data.get('is_anonymous', False):
+            if not data.get('anonymous_name') and not data.get('anonymous_email'):
+                raise serializers.ValidationError(
+                    "Anonymous donations require either a name or email address"
+                )
+        
+        # If patient_id provided, verify patient exists
+        if data.get('patient_id'):
+            from .models import PatientProfile
+            if not PatientProfile.objects.filter(id=data['patient_id']).exists():
+                raise serializers.ValidationError({"patient_id": "Patient not found"})
+        
+        return data
+    
+    def validate_amount(self, value):
+        """Ensure amount is positive"""
+        if value <= 0:
+            raise serializers.ValidationError("Donation amount must be greater than 0")
+        return value
+
+
+class DonationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for donation details (read-only)
+    """
+    donor_name = serializers.SerializerMethodField()
+    patient_name = serializers.SerializerMethodField()
+    donation_type_display = serializers.CharField(source='get_donation_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    is_recurring = serializers.ReadOnlyField()
+    total_recurring_amount = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = Donation
+        fields = [
+            'id', 'donor', 'donor_name', 'is_anonymous',
+            'patient', 'patient_name',
+            'amount', 'donation_type', 'donation_type_display',
+            'status', 'status_display',
+            'message', 'dedication',
+            'payment_method', 'transaction_id',
+            'is_recurring', 'is_recurring_active', 'total_recurring_amount',
+            'created_at', 'completed_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'completed_at']
+    
+    def get_donor_name(self, obj):
+        return obj.get_donor_display_name()
+    
+    def get_patient_name(self, obj):
+        return obj.patient.full_name if obj.patient else "General Fund"
+
+
+class DonationDetailSerializer(serializers.ModelSerializer):
+    """
+    Detailed donation serializer with all information (admin use)
+    """
+    donor_name = serializers.SerializerMethodField()
+    donor_email = serializers.SerializerMethodField()
+    patient_name = serializers.SerializerMethodField()
+    donation_type_display = serializers.CharField(source='get_donation_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    is_recurring = serializers.ReadOnlyField()
+    total_recurring_amount = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = Donation
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at', 'completed_at']
+    
+    def get_donor_name(self, obj):
+        return obj.get_donor_display_name()
+    
+    def get_donor_email(self, obj):
+        if obj.donor:
+            return obj.donor.email
+        return obj.anonymous_email
+    
+    def get_patient_name(self, obj):
+        return obj.patient.full_name if obj.patient else "General Fund"
+
+
+class DonationReceiptSerializer(serializers.ModelSerializer):
+    """Serializer for donation receipts"""
+    donation_details = DonationSerializer(source='donation', read_only=True)
+    
+    class Meta:
+        model = DonationReceipt
+        fields = ['id', 'receipt_number', 'receipt_url', 'email_sent', 'email_sent_at', 'created_at', 'donation_details']
+        read_only_fields = ['id', 'created_at']

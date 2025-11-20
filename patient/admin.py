@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import PatientProfile, ExpenseTypeLookup, TreatmentCostBreakdown, PatientTimeline
+from .models import PatientProfile, ExpenseTypeLookup, TreatmentCostBreakdown, PatientTimeline, DonationAmountOption
 
 
 class TreatmentCostBreakdownInline(admin.TabularInline):
@@ -8,6 +8,13 @@ class TreatmentCostBreakdownInline(admin.TabularInline):
     extra = 1
     fields = ['expense_type', 'amount', 'notes']
     autocomplete_fields = ['expense_type']
+
+
+class DonationAmountOptionInline(admin.TabularInline):
+    """Inline for configuring suggested donation amounts"""
+    model = DonationAmountOption
+    extra = 1
+    fields = ['amount', 'display_order', 'is_active', 'is_recommended']
 
 
 class PatientTimelineInline(admin.TabularInline):
@@ -21,7 +28,7 @@ class PatientTimelineInline(admin.TabularInline):
 
 @admin.register(PatientProfile)
 class PatientProfileAdmin(admin.ModelAdmin):
-    inlines = [TreatmentCostBreakdownInline, PatientTimelineInline]
+    inlines = [DonationAmountOptionInline, TreatmentCostBreakdownInline, PatientTimelineInline]
     list_display = [
         'full_name', 'status', 'funding_required', 'funding_received', 
         'cost_breakdown_total', 'created_at'

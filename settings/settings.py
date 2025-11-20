@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'auth_app',
     'patient',
     'donor',
+    'campaign',
 ]
 
 # Custom user model
@@ -249,7 +250,7 @@ SWAGGER_SETTINGS = {
     'REFETCH_SCHEMA_WITH_AUTH': True,
     'REFETCH_SCHEMA_ON_LOGOUT': True,
     'DEFAULT_INFO': 'settings.urls.api_info',
-    'TAGS_SORTER': 'alpha',
+    # 'TAGS_SORTER': 'alpha',  # Disabled to use natural tag order (1, 2, 3...)
     'OPERATIONS_SORTER': 'alpha',
     'DOC_EXPANSION': 'list',
     'DEEP_LINKING': True,

@@ -22,6 +22,7 @@ from rest_framework import permissions
 from .jwt_views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from .swagger_schema import OrderedTagSchemaGenerator
 
 # API Information for Swagger
 API_VERSION = settings.API_VERSION
@@ -73,12 +74,11 @@ Base URL: `/api/auth/`
     }
 )
 
-
-
 schema_view = get_schema_view(
     api_info,
     public=True,
     permission_classes=(permissions.AllowAny,),
+    generator_class=OrderedTagSchemaGenerator,
 )
 
 urlpatterns = [
@@ -102,6 +102,9 @@ urlpatterns = [
     
     # Patient app endpoints
     path(f'api/{API_VERSION}/patients/', include('patient.urls')),
+    
+    # Campaign app endpoints
+    path(f'api/{API_VERSION}/campaigns/', include('campaign.urls')),
     
     # DRF browsable API login/logout
     path('api-auth/', include('rest_framework.urls')),

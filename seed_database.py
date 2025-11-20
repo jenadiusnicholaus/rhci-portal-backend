@@ -36,7 +36,7 @@ django.setup()
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from auth_app.lookups import CountryLookup
-from patient.models import PatientProfile, ExpenseTypeLookup, TreatmentCostBreakdown, PatientTimeline
+from patient.models import PatientProfile, ExpenseTypeLookup, TreatmentCostBreakdown, PatientTimeline, DonationAmountOption
 from donor.models import DonorProfile
 
 User = get_user_model()
@@ -354,6 +354,34 @@ def create_patient(data, admin_user):
             metadata={'percentage': int(funding_pct), 'amount': str(data['funding_received'])}
         )
     
+    # Create donation amount options (quick select buttons)
+    # Calculate smart amounts based on funding remaining
+    remaining = data['funding_required'] - data['funding_received']
+    
+    # Create 4 suggested amounts similar to the image ($10, $28, $56, $150)
+    amounts = [
+        (remaining * Decimal('0.01'), 1, False),  # ~1% of remaining
+        (remaining * Decimal('0.03'), 2, False),  # ~3% of remaining
+        (remaining * Decimal('0.05'), 3, False),  # ~5% of remaining
+        (remaining * Decimal('0.15'), 4, True),   # ~15% of remaining (recommended)
+    ]
+    
+    for amount, order, is_recommended in amounts:
+        # Round to nearest $5 or $10
+        if amount < 50:
+            rounded_amount = round(amount / 5) * 5
+        else:
+            rounded_amount = round(amount / 10) * 10
+        
+        if rounded_amount > 0:
+            DonationAmountOption.objects.create(
+                patient_profile=profile,
+                amount=Decimal(str(rounded_amount)),
+                display_order=order,
+                is_active=True,
+                is_recommended=is_recommended
+            )
+    
     return profile
 
 
@@ -485,6 +513,7 @@ def seed_database(num_patients=None, num_donors=None, clear=False):
     print(f"   - Donors: {DonorProfile.objects.count()}")
     print(f"   - Timeline Events: {PatientTimeline.objects.count()}")
     print(f"   - Cost Breakdowns: {TreatmentCostBreakdown.objects.count()}")
+    print(f"   - Donation Amount Options: {DonationAmountOption.objects.count()}")
     
     print("\n🔐 Test Credentials:")
     print("   Admin: admin@rhci.org / admin123")

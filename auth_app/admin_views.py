@@ -36,7 +36,7 @@ class AdminPatientListView(generics.ListAPIView):
     @swagger_auto_schema(
         operation_summary="[ADMIN] List All Patient Submissions",
         operation_description="Retrieve all patient profiles with advanced filtering. Includes pending, approved, and published patients.",
-        tags=['7. Admin - Patient Review & Management'],
+        tags=['9. Admin - Patient Review & Management'],
         manual_parameters=[
             openapi.Parameter('status', openapi.IN_QUERY, description="Filter by status (SUBMITTED, PUBLISHED, etc.)", type=openapi.TYPE_STRING),
             openapi.Parameter('country', openapi.IN_QUERY, description="Filter by country", type=openapi.TYPE_STRING),
@@ -90,7 +90,7 @@ class AdminPatientDetailView(generics.RetrieveUpdateAPIView):
     @swagger_auto_schema(
         operation_summary="[ADMIN] View Patient Details",
         operation_description="Retrieve complete patient profile with all details including timeline and cost breakdown.",
-        tags=['7. Admin - Patient Review & Management'],
+        tags=['9. Admin - Patient Review & Management'],
         responses={
             200: AdminPatientReviewSerializer,
             403: 'Forbidden - Admin access required',
@@ -103,7 +103,7 @@ class AdminPatientDetailView(generics.RetrieveUpdateAPIView):
     @swagger_auto_schema(
         operation_summary="[ADMIN] Edit Patient Profile",
         operation_description="Update patient profile details including medical information, funding, and story.",
-        tags=['7. Admin - Patient Review & Management'],
+        tags=['9. Admin - Patient Review & Management'],
         responses={
             200: AdminPatientReviewSerializer,
             400: 'Bad Request - Validation errors',
@@ -130,7 +130,7 @@ class AdminPatientApprovalView(APIView):
     @swagger_auto_schema(
         operation_summary="[ADMIN] Approve/Reject Patient",
         operation_description="Approve or reject a patient profile submission. Approval verifies the user and creates timeline event.",
-        tags=['7. Admin - Patient Review & Management'],
+        tags=['9. Admin - Patient Review & Management'],
         request_body=AdminPatientApprovalSerializer,
         responses={
             200: openapi.Response('Action completed successfully', AdminPatientReviewSerializer),
@@ -212,7 +212,7 @@ class AdminPatientPublishView(APIView):
     @swagger_auto_schema(
         operation_summary="[ADMIN] Publish/Unpublish Patient",
         operation_description="Publish patient profile to make it visible on public API. Can mark as featured for homepage.",
-        tags=['7. Admin - Patient Review & Management'],
+        tags=['9. Admin - Patient Review & Management'],
         request_body=AdminPatientPublishSerializer,
         responses={
             200: openapi.Response('Patient published successfully', AdminPatientReviewSerializer),
@@ -294,7 +294,7 @@ class AdminTimelineEventCreateView(generics.CreateAPIView):
     @swagger_auto_schema(
         operation_summary="[ADMIN] Create Timeline Event",
         operation_description="Manually add a timeline event to a patient's journey. Supports TBD (future) events with event_date.",
-        tags=['8. Admin - Timeline Management'],
+        tags=['10. Admin - Timeline Management'],
         responses={
             201: AdminTimelineEventSerializer,
             400: 'Bad Request - Validation errors',
@@ -321,7 +321,7 @@ class AdminTimelineEventUpdateView(generics.UpdateAPIView):
     @swagger_auto_schema(
         operation_summary="[ADMIN] Update Timeline Event",
         operation_description="Edit existing timeline event. Setting is_current_state=true will automatically unmark all other events.",
-        tags=['8. Admin - Timeline Management'],
+        tags=['10. Admin - Timeline Management'],
         responses={
             200: AdminTimelineEventSerializer,
             400: 'Bad Request - Validation errors',
@@ -354,7 +354,7 @@ class AdminTimelineEventDeleteView(generics.DestroyAPIView):
     @swagger_auto_schema(
         operation_summary="[ADMIN] Delete Timeline Event",
         operation_description="Remove a timeline event. Cannot delete auto-generated milestone events (PROFILE_SUBMITTED, PROFILE_PUBLISHED, FULLY_FUNDED).",
-        tags=['8. Admin - Timeline Management'],
+        tags=['10. Admin - Timeline Management'],
         responses={
             204: 'Timeline event deleted successfully',
             400: 'Bad Request - Cannot delete protected milestone events',
@@ -390,7 +390,7 @@ class AdminTimelineEventListView(generics.ListAPIView):
     @swagger_auto_schema(
         operation_summary="[ADMIN] List Patient Timeline",
         operation_description="View all timeline events for a specific patient in chronological order.",
-        tags=['8. Admin - Timeline Management'],
+        tags=['10. Admin - Timeline Management'],
         responses={
             200: AdminTimelineEventSerializer(many=True),
             403: 'Forbidden - Admin access required'
@@ -422,7 +422,7 @@ class PublicPatientDetailView(generics.RetrieveAPIView):
     @swagger_auto_schema(
         operation_summary="View Patient Profile",
         operation_description="View complete patient profile including story, timeline, funding details, and cost breakdown. Only published patients are accessible.",
-        tags=['9. Public - Patient Profiles'],
+        tags=['11. Public - Patient Profiles'],
         responses={
             200: PatientProfileSerializer,
             404: 'Not Found - Patient not published or does not exist'
@@ -453,7 +453,7 @@ class PublicPatientListView(generics.ListAPIView):
     @swagger_auto_schema(
         operation_summary="List All Patients",
         operation_description="Browse all published patient profiles with advanced filtering and search. Perfect for donor browsing.",
-        tags=['9. Public - Patient Profiles'],
+        tags=['11. Public - Patient Profiles'],
         manual_parameters=[
             openapi.Parameter('country', openapi.IN_QUERY, description="Filter by country", type=openapi.TYPE_STRING),
             openapi.Parameter('medical_partner', openapi.IN_QUERY, description="Filter by hospital/medical partner", type=openapi.TYPE_STRING),
@@ -511,7 +511,7 @@ class PublicFeaturedPatientsView(generics.ListAPIView):
     @swagger_auto_schema(
         operation_summary="Featured Patients (Homepage)",
         operation_description="Get up to 6 featured patients for homepage display. Only returns published and verified patients marked as featured.",
-        tags=['9. Public - Patient Profiles'],
+        tags=['11. Public - Patient Profiles'],
         responses={
             200: PatientProfileSerializer(many=True)
         }

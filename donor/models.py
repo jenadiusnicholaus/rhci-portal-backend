@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from datetime import date
+from decimal import Decimal
 from auth_app.lookups import CountryLookup
 
 
@@ -40,3 +41,259 @@ class DonorProfile(models.Model):
                 (today.month, today.day) < (self.birthday.month, self.birthday.day)
             )
         return None
+
+
+class Donation(models.Model):
+    """
+    Core donation model supporting both anonymous and authenticated donations
+    """
+    DONATION_TYPE_CHOICES = [
+        ('ONE_TIME', 'One-time Donation'),
+        ('MONTHLY', 'Monthly Recurring'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'),
+        ('CANCELLED', 'Cancelled'),
+        ('REFUNDED', 'Refunded'),
+    ]
+    
+    # Donor information
+    donor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='donations',
+        help_text="Authenticated donor (null for anonymous donations)"
+    )
+    is_anonymous = models.BooleanField(
+        default=False,
+        help_text="Whether this donation is anonymous (hide donor identity)"
+    )
+    
+    # Anonymous donor details (if not logged in)
+    anonymous_name = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Name for anonymous donations"
+    )
+    anonymous_email = models.EmailField(
+        blank=True,
+        help_text="Email for receipt/updates (anonymous donations)"
+    )
+    
+    # Patient selection (optional - can be general donation)
+    patient = models.ForeignKey(
+        'patient.PatientProfile',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='donations',
+        help_text="Specific patient to donate to (null for general donation)"
+    )
+    
+    # Donation details
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Donation amount in USD"
+    )
+    donation_type = models.CharField(
+        max_length=20,
+        choices=DONATION_TYPE_CHOICES,
+        default='ONE_TIME'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='PENDING'
+    )
+    
+    # Payment information
+    payment_method = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Payment method used (e.g., card, mobile money)"
+    )
+    transaction_id = models.CharField(
+        max_length=200,
+        blank=True,
+        unique=True,
+        null=True,
+        help_text="External payment gateway transaction ID"
+    )
+    payment_gateway = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Payment gateway used (e.g., Stripe, PayPal, M-Pesa)"
+    )
+    
+    # Optional fields
+    message = models.TextField(
+        blank=True,
+        help_text="Optional message from donor to patient"
+    )
+    dedication = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Optional dedication (e.g., 'In memory of...')"
+    )
+    
+    # Recurring donation details
+    recurring_frequency = models.IntegerField(
+        default=1,
+        help_text="Frequency in months (1=monthly, 3=quarterly, etc.)"
+    )
+    next_charge_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Next scheduled charge date for recurring donations"
+    )
+    is_recurring_active = models.BooleanField(
+        default=False,
+        help_text="Whether recurring donation is active"
+    )
+    parent_donation = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recurring_payments',
+        help_text="Parent donation for recurring payment children"
+    )
+    
+    # Metadata
+    ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        help_text="IP address of donor"
+    )
+    user_agent = models.TextField(
+        blank=True,
+        help_text="Browser user agent"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When donation was successfully completed"
+    )
+    
+    class Meta:
+        db_table = 'donor_donation'
+        ordering = ['-created_at']
+        verbose_name = 'Donation'
+        verbose_name_plural = 'Donations'
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['status']),
+            models.Index(fields=['donor', '-created_at']),
+            models.Index(fields=['patient', '-created_at']),
+            models.Index(fields=['transaction_id']),
+        ]
+    
+    def __str__(self):
+        donor_name = self.get_donor_display_name()
+        patient_name = self.patient.full_name if self.patient else "General Fund"
+        return f"${self.amount} from {donor_name} to {patient_name}"
+    
+    def get_donor_display_name(self):
+        """Get donor name for display"""
+        if self.is_anonymous:
+            return "Anonymous"
+        if self.donor:
+            return self.donor.get_full_name() or self.donor.email
+        if self.anonymous_name:
+            return self.anonymous_name
+        return "Anonymous"
+    
+    @property
+    def is_recurring(self):
+        """Check if this is a recurring donation"""
+        return self.donation_type == 'MONTHLY'
+    
+    @property
+    def total_recurring_amount(self):
+        """Total amount donated through this recurring donation"""
+        if not self.is_recurring or not self.is_recurring_active:
+            return self.amount
+        
+        total = Donation.objects.filter(
+            parent_donation=self,
+            status='COMPLETED'
+        ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+        
+        return total + self.amount
+
+
+class DonationReceipt(models.Model):
+    """
+    Donation receipt/acknowledgment
+    """
+    donation = models.OneToOneField(
+        Donation,
+        on_delete=models.CASCADE,
+        related_name='receipt'
+    )
+    receipt_number = models.CharField(
+        max_length=50,
+        unique=True,
+        help_text="Unique receipt number for tax purposes"
+    )
+    receipt_url = models.URLField(
+        blank=True,
+        help_text="URL to downloadable PDF receipt"
+    )
+    email_sent = models.BooleanField(
+        default=False,
+        help_text="Whether receipt email was sent"
+    )
+    email_sent_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'donor_donationreceipt'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Receipt {self.receipt_number} - ${self.donation.amount}"
+
+
+class DonationComment(models.Model):
+    """
+    Comments/updates from donors or admins on donations
+    """
+    donation = models.ForeignKey(
+        Donation,
+        on_delete=models.CASCADE,
+        related_name='comments'
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    comment = models.TextField()
+    is_internal = models.BooleanField(
+        default=False,
+        help_text="Internal note (not visible to donor)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'donor_donationcomment'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Comment on donation {self.donation.id}"

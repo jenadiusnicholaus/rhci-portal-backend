@@ -15,6 +15,14 @@ from .admin_views import (
     PublicPatientListView,
     PublicFeaturedPatientsView,
 )
+from .donation_views import (
+    # Public Donation Amount Views
+    PatientDonationAmountsView,
+    # Admin Donation Amount Management
+    AdminDonationAmountListCreateView,
+    AdminDonationAmountDetailView,
+    AdminBulkCreateDonationAmountsView,
+)
 
 app_name = 'patient'
 
@@ -25,6 +33,11 @@ urlpatterns = [
     path('admin/<int:id>/', AdminPatientDetailView.as_view(), name='admin_patient_detail'),
     path('admin/<int:id>/approve/', AdminPatientApprovalView.as_view(), name='admin_patient_approval'),
     path('admin/<int:id>/publish/', AdminPatientPublishView.as_view(), name='admin_patient_publish'),
+    
+    # ============ ADMIN DONATION AMOUNT MANAGEMENT ============
+    path('admin/<int:patient_id>/donation-amounts/', AdminDonationAmountListCreateView.as_view(), name='admin_donation_amounts'),
+    path('admin/<int:patient_id>/donation-amounts/<int:id>/', AdminDonationAmountDetailView.as_view(), name='admin_donation_amount_detail'),
+    path('admin/<int:patient_id>/donation-amounts/bulk-create/', AdminBulkCreateDonationAmountsView.as_view(), name='admin_donation_amounts_bulk_create'),
     
     # ============ ADMIN TIMELINE MANAGEMENT ============
     path('admin/<int:patient_id>/timeline/', AdminTimelineEventListView.as_view(), name='admin_timeline_list'),
@@ -37,4 +50,8 @@ urlpatterns = [
     path('public/', PublicPatientListView.as_view(), name='public_patient_list'),
     path('public/<int:id>/', PublicPatientDetailView.as_view(), name='public_patient_detail'),
     path('public/featured/', PublicFeaturedPatientsView.as_view(), name='public_featured_patients'),
+    
+    # ============ PUBLIC DONATION AMOUNTS ============
+    # Public access - for donors to see suggested amounts during donation
+    path('public/<int:patient_id>/donation-amounts/', PatientDonationAmountsView.as_view(), name='public_donation_amounts'),
 ]
