@@ -97,11 +97,49 @@ class LoginSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    profile_picture_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = CustomUser
         fields = ['id', 'email', 'user_type', 'first_name', 'last_name', 
-                  'is_verified', 'is_patient_verified', 'date_joined']
+                  'is_verified', 'is_patient_verified', 'date_joined', 'profile_picture_url']
         read_only_fields = ['email', 'user_type', 'is_verified', 'date_joined']
+    
+    def get_profile_picture_url(self, obj):
+        """Return profile picture URL based on user type"""
+        request = self.context.get('request')
+        
+        # For users with direct profile_picture field
+        if obj.profile_picture:
+            if request:
+                return request.build_absolute_uri(obj.profile_picture.url)
+            return obj.profile_picture.url
+        
+        # For donors, get photo from DonorProfile
+        if obj.user_type == 'DONOR':
+            try:
+                from donor.models import DonorProfile
+                donor_profile = DonorProfile.objects.filter(user=obj).first()
+                if donor_profile and donor_profile.photo:
+                    if request:
+                        return request.build_absolute_uri(donor_profile.photo.url)
+                    return donor_profile.photo.url
+            except:
+                pass
+        
+        # For patients, get photo from PatientProfile
+        elif obj.user_type == 'PATIENT':
+            try:
+                from patient.models import PatientProfile
+                patient_profile = PatientProfile.objects.filter(user=obj).first()
+                if patient_profile and patient_profile.photo:
+                    if request:
+                        return request.build_absolute_uri(patient_profile.photo.url)
+                    return patient_profile.photo.url
+            except:
+                pass
+        
+        return None
 
 
 class ExpenseTypeLookupSerializer(serializers.ModelSerializer):

@@ -43,7 +43,7 @@ class PatientRegisterView(generics.CreateAPIView):
         user = serializer.save()
         return Response({
             'message': 'Patient registration successful. Check your email to verify.',
-            'user': UserSerializer(user).data
+            'user': UserSerializer(user, context={'request': request}).data
         }, status=status.HTTP_201_CREATED)
 
 
@@ -90,7 +90,7 @@ class LoginView(generics.GenericAPIView):
         refresh = RefreshToken.for_user(user)
         
         return Response({
-            'user': UserSerializer(user).data,
+            'user': UserSerializer(user, context={'request': request}).data,
             'tokens': {
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),

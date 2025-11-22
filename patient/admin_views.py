@@ -16,7 +16,11 @@ from .serializers import (
     AdminPatientApprovalSerializer,
     AdminPatientPublishSerializer,
     AdminTimelineEventSerializer,
-    PatientProfileSerializer
+    PatientProfileSerializer,
+    AdminPatientManagementSerializer,
+    AdminPatientCreateSerializer,
+    AdminPatientBulkActionSerializer,
+    AdminPatientStatsSerializer
 )
 
 
@@ -559,3 +563,350 @@ class PublicFeaturedPatientsView(generics.ListAPIView):
         ).select_related('user').prefetch_related(
             'cost_breakdowns', 'timeline_events'
         ).order_by('-created_at')[:6]  # Limit to 6 featured patients
+
+
+# ============ NEW COMPREHENSIVE ADMIN PATIENT MANAGEMENT VIEWS ============
+
+class AdminPatientManagementListView(generics.ListCreateAPIView):
+    """
+    Comprehensive admin endpoint for patient management.
+    GET: List all patients with advanced filtering and search
+    POST: Create new patient profile
+    """
+    permission_classes = [IsAdminUser]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['full_name', 'user__email', 'diagnosis', 'medical_partner', 'country_fk__name']
+    ordering_fields = ['created_at', 'updated_at', 'status', 'funding_percentage', 'funding_required', 'full_name']
+    ordering = ['-created_at']
+    
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return AdminPatientCreateSerializer
+        return AdminPatientManagementSerializer
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] List All Patients",
+        operation_description="Retrieve all patient profiles with comprehensive filtering, search, and pagination for admin management.",
+        tags=['Admin - Patient Review & Management'],
+        manual_parameters=[
+            openapi.Parameter('status', openapi.IN_QUERY, description="Filter by status", type=openapi.TYPE_STRING),
+            openapi.Parameter('country', openapi.IN_QUERY, description="Filter by country ID", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('gender', openapi.IN_QUERY, description="Filter by gender (M/F/O)", type=openapi.TYPE_STRING),
+            openapi.Parameter('is_featured', openapi.IN_QUERY, description="Filter by featured status", type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('is_verified', openapi.IN_QUERY, description="Filter by user verification", type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('funding_min', openapi.IN_QUERY, description="Minimum funding required", type=openapi.TYPE_NUMBER),
+            openapi.Parameter('funding_max', openapi.IN_QUERY, description="Maximum funding required", type=openapi.TYPE_NUMBER),
+            openapi.Parameter('created_after', openapi.IN_QUERY, description="Created after date (YYYY-MM-DD)", type=openapi.TYPE_STRING),
+            openapi.Parameter('created_before', openapi.IN_QUERY, description="Created before date (YYYY-MM-DD)", type=openapi.TYPE_STRING),
+            openapi.Parameter('search', openapi.IN_QUERY, description="Search in name, email, diagnosis, medical partner, country", type=openapi.TYPE_STRING),
+            openapi.Parameter('ordering', openapi.IN_QUERY, description="Order by field", type=openapi.TYPE_STRING),
+        ],
+        responses={200: AdminPatientManagementSerializer(many=True)}
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Create New Patient",
+        operation_description="Create a new patient profile with associated user account.",
+        tags=['Admin - Patient Review & Management'],
+        request_body=AdminPatientCreateSerializer,
+        responses={
+            201: AdminPatientManagementSerializer,
+            400: 'Validation Error'
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+    
+    def get_queryset(self):
+        queryset = PatientProfile.objects.select_related(
+            'user', 'country_fk'
+        ).prefetch_related(
+            'cost_breakdowns', 'timeline_events'
+        )
+        
+        # Apply filters
+        status = self.request.query_params.get('status')
+        if status:
+            queryset = queryset.filter(status=status)
+        
+        country = self.request.query_params.get('country')
+        if country:
+            queryset = queryset.filter(country_fk_id=country)
+        
+        gender = self.request.query_params.get('gender')
+        if gender:
+            queryset = queryset.filter(gender=gender)
+        
+        is_featured = self.request.query_params.get('is_featured')
+        if is_featured is not None:
+            queryset = queryset.filter(is_featured=is_featured.lower() == 'true')
+        
+        is_verified = self.request.query_params.get('is_verified')
+        if is_verified is not None:
+            queryset = queryset.filter(user__is_verified=is_verified.lower() == 'true')
+        
+        funding_min = self.request.query_params.get('funding_min')
+        if funding_min:
+            queryset = queryset.filter(funding_required__gte=funding_min)
+        
+        funding_max = self.request.query_params.get('funding_max')
+        if funding_max:
+            queryset = queryset.filter(funding_required__lte=funding_max)
+        
+        created_after = self.request.query_params.get('created_after')
+        if created_after:
+            queryset = queryset.filter(created_at__date__gte=created_after)
+        
+        created_before = self.request.query_params.get('created_before')
+        if created_before:
+            queryset = queryset.filter(created_at__date__lte=created_before)
+        
+        return queryset
+
+
+class AdminPatientManagementDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Admin endpoint for individual patient management.
+    GET: Retrieve patient details
+    PUT/PATCH: Update patient information
+    DELETE: Delete patient profile
+    """
+    serializer_class = AdminPatientManagementSerializer
+    permission_classes = [IsAdminUser]
+    lookup_field = 'id'
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Get Patient Details",
+        operation_description="Retrieve detailed information for a specific patient.",
+        tags=['Admin - Patient Review & Management'],
+        responses={
+            200: AdminPatientManagementSerializer,
+            404: 'Patient not found'
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Update Patient",
+        operation_description="Update patient profile information.",
+        tags=['Admin - Patient Review & Management'],
+        request_body=AdminPatientManagementSerializer,
+        responses={
+            200: AdminPatientManagementSerializer,
+            400: 'Validation Error',
+            404: 'Patient not found'
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Partial Update Patient",
+        operation_description="Partially update patient profile information.",
+        tags=['Admin - Patient Review & Management'],
+        request_body=AdminPatientManagementSerializer,
+        responses={
+            200: AdminPatientManagementSerializer,
+            400: 'Validation Error',
+            404: 'Patient not found'
+        }
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Delete Patient",
+        operation_description="Delete a patient profile and associated user account.",
+        tags=['Admin - Patient Review & Management'],
+        responses={
+            204: 'Patient deleted successfully',
+            404: 'Patient not found'
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)
+    
+    def perform_destroy(self, instance):
+        # Delete associated user account as well
+        user = instance.user
+        instance.delete()
+        user.delete()
+    
+    def get_queryset(self):
+        return PatientProfile.objects.select_related(
+            'user', 'country_fk'
+        ).prefetch_related(
+            'cost_breakdowns', 'timeline_events'
+        )
+
+
+class AdminPatientBulkActionView(APIView):
+    """
+    Admin endpoint for bulk actions on multiple patients.
+    """
+    permission_classes = [IsAdminUser]
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Bulk Patient Actions",
+        operation_description="Perform bulk actions on multiple patient profiles (approve, reject, publish, etc.).",
+        tags=['Admin - Patient Review & Management'],
+        request_body=AdminPatientBulkActionSerializer,
+        responses={
+            200: openapi.Response(
+                description="Bulk action completed",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'success': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'affected_count': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'results': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_OBJECT))
+                    }
+                )
+            ),
+            400: 'Validation Error'
+        }
+    )
+    def post(self, request):
+        serializer = AdminPatientBulkActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        patient_ids = serializer.validated_data['patient_ids']
+        action = serializer.validated_data['action']
+        reason = serializer.validated_data.get('reason', '')
+        
+        # Get patients
+        patients = PatientProfile.objects.filter(id__in=patient_ids)
+        if not patients.exists():
+            return Response({
+                'success': False,
+                'message': 'No patients found with provided IDs'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        results = []
+        affected_count = 0
+        
+        for patient in patients:
+            try:
+                if action == 'approve':
+                    patient.status = 'SCHEDULED'
+                    patient.save()
+                    results.append({'patient_id': patient.id, 'status': 'approved'})
+                    affected_count += 1
+                    
+                elif action == 'reject':
+                    patient.status = 'SUBMITTED'
+                    patient.rejection_reason = reason
+                    patient.save()
+                    results.append({'patient_id': patient.id, 'status': 'rejected'})
+                    affected_count += 1
+                    
+                elif action == 'publish':
+                    patient.status = 'PUBLISHED'
+                    patient.save()
+                    results.append({'patient_id': patient.id, 'status': 'published'})
+                    affected_count += 1
+                    
+                elif action == 'unpublish':
+                    patient.status = 'SCHEDULED'
+                    patient.save()
+                    results.append({'patient_id': patient.id, 'status': 'unpublished'})
+                    affected_count += 1
+                    
+                elif action == 'feature':
+                    patient.is_featured = True
+                    patient.save()
+                    results.append({'patient_id': patient.id, 'status': 'featured'})
+                    affected_count += 1
+                    
+                elif action == 'unfeature':
+                    patient.is_featured = False
+                    patient.save()
+                    results.append({'patient_id': patient.id, 'status': 'unfeatured'})
+                    affected_count += 1
+                    
+                elif action == 'delete':
+                    user = patient.user
+                    patient.delete()
+                    user.delete()
+                    results.append({'patient_id': patient.id, 'status': 'deleted'})
+                    affected_count += 1
+                    
+            except Exception as e:
+                results.append({'patient_id': patient.id, 'status': 'error', 'error': str(e)})
+        
+        return Response({
+            'success': True,
+            'message': f'Bulk {action} completed',
+            'affected_count': affected_count,
+            'results': results
+        })
+
+
+class AdminPatientStatsView(APIView):
+    """
+    Admin endpoint for patient statistics and dashboard data.
+    """
+    permission_classes = [IsAdminUser]
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Patient Statistics",
+        operation_description="Get comprehensive patient statistics for admin dashboard.",
+        tags=['Admin - Patient Review & Management'],
+        responses={200: AdminPatientStatsSerializer}
+    )
+    def get(self, request):
+        from django.db.models import Count, Sum, Avg
+        from datetime import timedelta
+        
+        # Basic counts
+        total_patients = PatientProfile.objects.count()
+        submitted_patients = PatientProfile.objects.filter(status='SUBMITTED').count()
+        published_patients = PatientProfile.objects.filter(status='PUBLISHED').count()
+        fully_funded_patients = PatientProfile.objects.filter(status='FULLY_FUNDED').count()
+        featured_patients = PatientProfile.objects.filter(is_featured=True).count()
+        
+        # Funding statistics
+        funding_stats = PatientProfile.objects.aggregate(
+            total_required=Sum('funding_required'),
+            total_received=Sum('funding_received'),
+            avg_percentage=Avg('funding_received') * 100 / Avg('funding_required') if PatientProfile.objects.exists() else 0
+        )
+        
+        # Patients by country
+        patients_by_country = dict(
+            PatientProfile.objects.values('country_fk__name')
+            .annotate(count=Count('id'))
+            .values_list('country_fk__name', 'count')
+        )
+        
+        # Patients by status
+        patients_by_status = dict(
+            PatientProfile.objects.values('status')
+            .annotate(count=Count('id'))
+            .values_list('status', 'count')
+        )
+        
+        # Recent submissions (last 30 days)
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        recent_submissions = PatientProfile.objects.filter(created_at__gte=thirty_days_ago).count()
+        
+        stats_data = {
+            'total_patients': total_patients,
+            'submitted_patients': submitted_patients,
+            'published_patients': published_patients,
+            'fully_funded_patients': fully_funded_patients,
+            'featured_patients': featured_patients,
+            'total_funding_required': funding_stats['total_required'] or 0,
+            'total_funding_received': funding_stats['total_received'] or 0,
+            'average_funding_percentage': funding_stats['avg_percentage'] or 0,
+            'patients_by_country': patients_by_country,
+            'patients_by_status': patients_by_status,
+            'recent_submissions': recent_submissions
+        }
+        
+        serializer = AdminPatientStatsSerializer(stats_data)
+        return Response(serializer.data)

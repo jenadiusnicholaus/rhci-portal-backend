@@ -5,6 +5,11 @@ from .admin_views import (
     AdminPatientDetailView,
     AdminPatientApprovalView,
     AdminPatientPublishView,
+    # New Comprehensive Admin Patient Management
+    AdminPatientManagementListView,
+    AdminPatientManagementDetailView,
+    AdminPatientBulkActionView,
+    AdminPatientStatsView,
     # Admin Timeline Management
     AdminTimelineEventCreateView,
     AdminTimelineEventUpdateView,
@@ -15,6 +20,7 @@ from .admin_views import (
     PublicPatientListView,
     PublicFeaturedPatientsView,
 )
+from .dashboard_stats import AdminDashboardStatsView
 from .donation_views import (
     # Public Donation Amount Views
     PatientDonationAmountsView,
@@ -27,8 +33,19 @@ from .donation_views import (
 app_name = 'patient'
 
 urlpatterns = [
-    # ============ ADMIN PATIENT MANAGEMENT ============
-    # Admin review and management
+    # ============ ADMIN DASHBOARD ============
+    # Comprehensive dashboard statistics for admin overview
+    path('admin/dashboard/stats/', AdminDashboardStatsView.as_view(), name='admin_dashboard_stats'),
+    
+    # ============ COMPREHENSIVE ADMIN PATIENT MANAGEMENT ============
+    # New comprehensive admin endpoints for full patient management
+    path('admin/manage/', AdminPatientManagementListView.as_view(), name='admin_patient_management_list'),
+    path('admin/manage/<int:id>/', AdminPatientManagementDetailView.as_view(), name='admin_patient_management_detail'),
+    path('admin/manage/bulk-actions/', AdminPatientBulkActionView.as_view(), name='admin_patient_bulk_actions'),
+    path('admin/stats/', AdminPatientStatsView.as_view(), name='admin_patient_stats'),
+    
+    # ============ LEGACY ADMIN PATIENT MANAGEMENT ============
+    # Original admin review and management (kept for backward compatibility)
     path('admin/', AdminPatientListView.as_view(), name='admin_patient_list'),
     path('admin/<int:id>/', AdminPatientDetailView.as_view(), name='admin_patient_detail'),
     path('admin/<int:id>/approve/', AdminPatientApprovalView.as_view(), name='admin_patient_approval'),

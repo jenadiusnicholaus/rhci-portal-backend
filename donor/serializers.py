@@ -18,11 +18,21 @@ class DonorProfileSerializer(serializers.ModelSerializer):
     age = serializers.ReadOnlyField()
     user_email = serializers.EmailField(source='user.email', read_only=True)
     country = CountryLookupSerializer(source='country_fk', read_only=True)
+    photo_url = serializers.SerializerMethodField()
+    
+    def get_photo_url(self, obj):
+        """Return full URL for donor photo"""
+        if obj.photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return None
     
     class Meta:
         model = DonorProfile
         fields = [
-            'id', 'user', 'user_email', 'photo', 'full_name', 'short_bio',
+            'id', 'user', 'user_email', 'photo', 'photo_url', 'full_name', 'short_bio',
             'country', 'website', 'birthday', 'age', 'workplace',
             'is_profile_private', 'created_at', 'updated_at'
         ]
@@ -53,11 +63,21 @@ class PublicDonorProfileSerializer(serializers.ModelSerializer):
     
     age = serializers.ReadOnlyField()
     country = CountryLookupSerializer(source='country_fk', read_only=True)
+    photo_url = serializers.SerializerMethodField()
+    
+    def get_photo_url(self, obj):
+        """Return full URL for donor photo"""
+        if obj.photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return None
     
     class Meta:
         model = DonorProfile
         fields = [
-            'id', 'photo', 'full_name', 'short_bio', 'country',
+            'id', 'photo', 'photo_url', 'full_name', 'short_bio', 'country',
             'website', 'age', 'workplace', 'created_at'
         ]
         read_only_fields = fields

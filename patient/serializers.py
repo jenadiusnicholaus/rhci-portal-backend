@@ -100,11 +100,21 @@ class PatientProfileSerializer(serializers.ModelSerializer):
     cost_breakdowns = TreatmentCostBreakdownSerializer(many=True, read_only=True)
     timeline_events = PatientTimelineSerializer(many=True, read_only=True)
     country = CountryLookupSerializer(source='country_fk', read_only=True)
+    photo_url = serializers.SerializerMethodField()
+    
+    def get_photo_url(self, obj):
+        """Return full URL for patient photo"""
+        if obj.photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return None
     
     class Meta:
         model = PatientProfile
         fields = [
-            'id', 'user', 'photo', 'full_name', 'age', 'gender', 'country',
+            'id', 'user', 'photo', 'photo_url', 'full_name', 'age', 'gender', 'country',
             'short_description', 'long_story', 'medical_partner',
             'diagnosis', 'treatment_needed', 'treatment_date',
             # Funding summary
@@ -221,12 +231,22 @@ class AdminPatientReviewSerializer(serializers.ModelSerializer):
     cost_breakdowns = TreatmentCostBreakdownSerializer(many=True, read_only=True)
     timeline_events = PatientTimelineSerializer(many=True, read_only=True)
     country = CountryLookupSerializer(source='country_fk', read_only=True)
+    photo_url = serializers.SerializerMethodField()
+    
+    def get_photo_url(self, obj):
+        """Return full URL for patient photo"""
+        if obj.photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return None
     
     class Meta:
         model = PatientProfile
         fields = [
             'id', 'user', 'user_email', 'user_verified', 'patient_verified',
-            'photo', 'full_name', 'age', 'gender', 'country',
+            'photo', 'photo_url', 'full_name', 'age', 'gender', 'country',
             'short_description', 'long_story', 'medical_partner',
             'diagnosis', 'treatment_needed', 'treatment_date',
             'funding_required', 'funding_received', 'total_treatment_cost',
@@ -259,6 +279,148 @@ class AdminPatientPublishSerializer(serializers.Serializer):
     """
     publish = serializers.BooleanField(default=True)
     featured = serializers.BooleanField(default=False, required=False)
+
+
+class AdminPatientManagementSerializer(serializers.ModelSerializer):
+    """
+    Comprehensive admin serializer for full patient management CRUD operations.
+    Includes all fields and allows admin to manage patient profiles completely.
+    """
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    user_date_of_birth = serializers.DateField(source='user.date_of_birth', read_only=True)
+    user_is_verified = serializers.BooleanField(source='user.is_verified', read_only=True)
+    user_is_patient_verified = serializers.BooleanField(source='user.is_patient_verified', read_only=True)
+    country_name = serializers.CharField(source='country_fk.name', read_only=True)
+    age = serializers.ReadOnlyField()
+    funding_percentage = serializers.ReadOnlyField()
+    funding_remaining = serializers.ReadOnlyField()
+    photo_url = serializers.SerializerMethodField()
+    
+    # Admin-specific fields for management
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    created_by_admin = serializers.SerializerMethodField()
+    last_updated_by = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PatientProfile
+        fields = [
+            'id', 'user_id', 'user_email', 'user_date_of_birth', 'user_is_verified', 'user_is_patient_verified',
+            'photo', 'photo_url', 'full_name', 'gender', 'country_fk', 'country_name', 'age',
+            'short_description', 'long_story',
+            'medical_partner', 'diagnosis', 'treatment_needed', 'treatment_date',
+            'funding_required', 'funding_received', 'total_treatment_cost', 'cost_breakdown_notes',
+            'funding_percentage', 'funding_remaining',
+            'status', 'is_featured', 'rejection_reason',
+            'created_by_admin', 'last_updated_by',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'user_id', 'user_email', 'created_at', 'updated_at']
+    
+    def get_photo_url(self, obj):
+        if obj.photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+        return None
+    
+    def get_created_by_admin(self, obj):
+        # This would need to be tracked if we add a created_by field
+        return "System"
+    
+    def get_last_updated_by(self, obj):
+        # This would need to be tracked if we add an updated_by field
+        return "Admin"
+
+
+class AdminPatientCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for admin to create new patient profiles.
+    """
+    user_email = serializers.EmailField(write_only=True)
+    user_first_name = serializers.CharField(write_only=True, max_length=150)
+    user_last_name = serializers.CharField(write_only=True, max_length=150)
+    user_date_of_birth = serializers.DateField(write_only=True, required=False)
+    
+    class Meta:
+        model = PatientProfile
+        fields = [
+            'user_email', 'user_first_name', 'user_last_name', 'user_date_of_birth',
+            'photo', 'full_name', 'gender', 'country_fk',
+            'short_description', 'long_story',
+            'medical_partner', 'diagnosis', 'treatment_needed', 'treatment_date',
+            'funding_required', 'funding_received', 'total_treatment_cost', 'cost_breakdown_notes',
+            'status', 'is_featured'
+        ]
+    
+    def create(self, validated_data):
+        # Extract user data
+        user_data = {
+            'email': validated_data.pop('user_email'),
+            'first_name': validated_data.pop('user_first_name'),
+            'last_name': validated_data.pop('user_last_name'),
+            'user_type': 'PATIENT',
+            'is_active': True,
+            'is_verified': True,
+            'is_patient_verified': True
+        }
+        
+        if 'user_date_of_birth' in validated_data:
+            user_data['date_of_birth'] = validated_data.pop('user_date_of_birth')
+        
+        # Create user
+        from auth_app.models import CustomUser
+        user = CustomUser.objects.create_user(**user_data)
+        
+        # Create patient profile
+        validated_data['user'] = user
+        return PatientProfile.objects.create(**validated_data)
+
+
+class AdminPatientBulkActionSerializer(serializers.Serializer):
+    """
+    Serializer for bulk actions on patient profiles.
+    """
+    ACTION_CHOICES = [
+        ('approve', 'Approve'),
+        ('reject', 'Reject'),
+        ('publish', 'Publish'),
+        ('unpublish', 'Unpublish'),
+        ('feature', 'Feature'),
+        ('unfeature', 'Unfeature'),
+        ('delete', 'Delete'),
+    ]
+    
+    patient_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        min_length=1,
+        help_text="List of patient profile IDs"
+    )
+    action = serializers.ChoiceField(choices=ACTION_CHOICES)
+    reason = serializers.CharField(required=False, help_text="Required for reject action")
+    
+    def validate(self, data):
+        if data['action'] == 'reject' and not data.get('reason'):
+            raise serializers.ValidationError({
+                'reason': 'Reason is required when rejecting patients.'
+            })
+        return data
+
+
+class AdminPatientStatsSerializer(serializers.Serializer):
+    """
+    Serializer for patient statistics for admin dashboard.
+    """
+    total_patients = serializers.IntegerField(read_only=True)
+    submitted_patients = serializers.IntegerField(read_only=True)
+    published_patients = serializers.IntegerField(read_only=True)
+    fully_funded_patients = serializers.IntegerField(read_only=True)
+    featured_patients = serializers.IntegerField(read_only=True)
+    total_funding_required = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total_funding_received = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    average_funding_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
+    patients_by_country = serializers.DictField(read_only=True)
+    patients_by_status = serializers.DictField(read_only=True)
+    recent_submissions = serializers.IntegerField(read_only=True, help_text="Last 30 days")
 
 
 class AdminTimelineEventSerializer(serializers.ModelSerializer):
