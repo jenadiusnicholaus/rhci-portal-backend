@@ -9,6 +9,12 @@ from .views import (
     AdminDonationDetailView,
     PatientDonationsView,
 )
+from .payment_views import (
+    AzamPayMobileMoneyCheckoutView,
+    AzamPayBankCheckoutView,
+    AzamPayCallbackView,
+    CheckPaymentStatusView,
+)
 
 app_name = 'donor'
 
@@ -32,4 +38,17 @@ urlpatterns = [
     # Admin - Donation management
     path('admin/donations/', AdminDonationListView.as_view(), name='admin_donation_list'),
     path('admin/donations/<int:id>/', AdminDonationDetailView.as_view(), name='admin_donation_detail'),
+    
+    # ============ PAYMENT ENDPOINTS (AZAM PAY) ============
+    # Mobile money payment
+    path('payment/azampay/mobile-money/', AzamPayMobileMoneyCheckoutView.as_view(), name='azampay_mobile_checkout'),
+    
+    # Bank payment
+    path('payment/azampay/bank/', AzamPayBankCheckoutView.as_view(), name='azampay_bank_checkout'),
+    
+    # Webhook callback (called by Azam Pay)
+    path('payment/azampay/callback/', AzamPayCallbackView.as_view(), name='azampay_callback'),
+    
+    # Check payment status
+    path('payment/status/', CheckPaymentStatusView.as_view(), name='payment_status'),
 ]

@@ -307,3 +307,16 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+
+# ============================================================================
+# AZAM PAY PAYMENT GATEWAY CONFIGURATION
+# ============================================================================
+
+AZAM_PAY_AUTH = config('AZAM_PAY_AUTH', default='https://authenticator-sandbox.azampay.co.tz')
+AZAM_PAY_CHECKOUT_URL = config('AZAM_PAY_CHECKOUT_URL', default='https://sandbox.azampay.co.tz')
+AZAM_PAY_APP_NAME = config('AZAM_PAY_APP_NAME', default='eshop')
+AZAM_PAY_CLIENT_ID = config('AZAM_PAY_CLIENT_ID', default='')
+AZAM_PAY_CLIENT_SECRET = config('AZAM_PAY_CLIENT_SECRET', default='')
+
+# Exchange rate for USD to TZS (update regularly or use API)
+USD_TO_TZS_RATE = config('USD_TO_TZS_RATE', default=2300, cast=float)
