@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate, get_user_model
 from datetime import date
+from utils.base_64_serializer_field import Base64AnyFileField
 
 from auth_app.exceptions import (
     EmailAlreadyExistsException, PasswordTooShortException,
@@ -9,11 +10,44 @@ from auth_app.exceptions import (
 )
 from .models import (
     PatientProfile, PatientTimeline, TreatmentCostBreakdown, 
-    ExpenseTypeLookup, DonationAmountOption
+    ExpenseTypeLookup, DonationAmountOption, PatientImage, PatientVideo
 )
 from donor.models import Donation, DonationReceipt, DonationComment
 
 User = get_user_model()
+
+
+class PatientImageSerializer(serializers.ModelSerializer):
+    """Serializer for patient images"""
+    image = Base64AnyFileField(
+        allowed_types=['jpg', 'jpeg', 'png'],
+        max_file_size=5 * 1024 * 1024,  # 5MB
+        required=False
+    )
+    image_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PatientImage
+        fields = ['id', 'image', 'image_url', 'caption', 'display_order', 'is_primary', 'uploaded_at']
+        read_only_fields = ['id', 'uploaded_at']
+    
+    def get_image_url(self, obj):
+        request = self.context.get('request')
+        if obj.image:
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+
+
+class PatientVideoSerializer(serializers.ModelSerializer):
+    """Serializer for patient video"""
+    youtube_embed_url = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = PatientVideo
+        fields = ['id', 'youtube_url', 'youtube_embed_url', 'video_title', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 class ExpenseTypeLookupSerializer(serializers.ModelSerializer):
@@ -101,6 +135,8 @@ class PatientProfileSerializer(serializers.ModelSerializer):
     timeline_events = PatientTimelineSerializer(many=True, read_only=True)
     country = CountryLookupSerializer(source='country_fk', read_only=True)
     photo_url = serializers.SerializerMethodField()
+    images = PatientImageSerializer(many=True, read_only=True)
+    video = PatientVideoSerializer(read_only=True)
     
     def get_photo_url(self, obj):
         """Return full URL for patient photo"""
@@ -117,6 +153,8 @@ class PatientProfileSerializer(serializers.ModelSerializer):
             'id', 'user', 'photo', 'photo_url', 'full_name', 'age', 'gender', 'country',
             'short_description', 'long_story', 'medical_partner',
             'diagnosis', 'treatment_needed', 'treatment_date',
+            # Media
+            'images', 'video',
             # Funding summary
             'funding_required', 'funding_received', 'total_treatment_cost',
             'funding_percentage', 'funding_remaining', 'other_contributions',
@@ -140,28 +178,57 @@ class PatientProfileSerializer(serializers.ModelSerializer):
 
 
 class PatientRegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
+    phone_number = serializers.CharField(max_length=20, required=True)
     gender = serializers.ChoiceField(choices=PatientProfile.GENDER_CHOICES, write_only=True)
-    country_id = serializers.IntegerField(write_only=True, help_text="ID of country from CountryLookup")
+    country_id = serializers.IntegerField(write_only=True, required=False, allow_null=True, help_text="ID of country from CountryLookup")
+    country = serializers.CharField(write_only=True, required=False, allow_null=True, help_text="Country name (alternative to country_id)")
     short_description = serializers.CharField(max_length=255, write_only=True)
     long_story = serializers.CharField(write_only=True)
     date_of_birth = serializers.DateField(write_only=True)
-    photo = serializers.ImageField(write_only=True, required=False, allow_null=True)
+    photo = Base64AnyFileField(
+        allowed_types=['jpg', 'jpeg', 'png'],
+        max_file_size=5 * 1024 * 1024,  # 5MB
+        write_only=True,
+        required=False,
+        allow_null=True,
+        help_text="Primary profile photo (Base64 encoded)"
+    )
+    images = serializers.ListField(
+        child=Base64AnyFileField(
+            allowed_types=['jpg', 'jpeg', 'png'],
+            max_file_size=5 * 1024 * 1024  # 5MB per image
+        ),
+        write_only=True,
+        required=False,
+        allow_empty=True,
+        help_text="List of additional patient images (Base64 encoded)"
+    )
+    youtube_url = serializers.URLField(write_only=True, required=False, allow_null=True, allow_blank=True, help_text="YouTube video URL")
+    video_title = serializers.CharField(write_only=True, required=False, allow_null=True, allow_blank=True, max_length=255, help_text="Optional video title")
     
     class Meta:
         model = User
-        fields = ['email', 'password', 'first_name', 'last_name', 'date_of_birth', 
-                  'gender', 'country_id', 'photo', 'short_description', 'long_story']
+        fields = ['email', 'phone_number', 'first_name', 'last_name', 'date_of_birth', 
+                  'gender', 'country_id', 'country', 'photo', 'images', 'youtube_url', 'video_title',
+                  'short_description', 'long_story']
     
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise EmailAlreadyExistsException()
         return value
     
-    def validate_password(self, value):
-        if len(value) < 8:
-            raise PasswordTooShortException()
+    def validate_phone_number(self, value):
+        if not value or len(value) < 10:
+            raise serializers.ValidationError("Phone number must be at least 10 digits")
         return value
+    
+    def validate(self, data):
+        # Either country_id or country must be provided
+        if not data.get('country_id') and not data.get('country'):
+            raise serializers.ValidationError({
+                'country': 'Either country_id or country name must be provided'
+            })
+        return data
     
     def validate_date_of_birth(self, value):
         if value > date.today():
@@ -179,24 +246,42 @@ class PatientRegisterSerializer(serializers.ModelSerializer):
         
         # Extract patient profile fields
         gender = validated_data.pop('gender')
-        country_id = validated_data.pop('country_id')
+        country_id = validated_data.pop('country_id', None)
+        country_name = validated_data.pop('country', None)
         photo = validated_data.pop('photo', None)
         short_description = validated_data.pop('short_description')
         long_story = validated_data.pop('long_story')
         date_of_birth = validated_data.pop('date_of_birth')
         
-        # Get country lookup object
-        country_lookup = CountryLookup.objects.get(id=country_id)
+        # Get or create country lookup object
+        if country_id:
+            country_lookup = CountryLookup.objects.get(id=country_id)
+        elif country_name:
+            country_lookup, _ = CountryLookup.objects.get_or_create(
+                name=country_name,
+                defaults={'code': country_name[:3].upper(), 'display_order': 999}
+            )
+        else:
+            country_lookup = None
         
-        # Create user
-        user = User.objects.create_user(
-            **validated_data,
+        # Create user without password (patients register without login initially)
+        user = User.objects.create(
+            email=validated_data['email'],
+            phone_number=validated_data['phone_number'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name'],
+            date_of_birth=date_of_birth,
             user_type='PATIENT',
-            date_of_birth=date_of_birth
+            is_active=True  # Active by default, but not verified
         )
         
         # Build full name from first and last name
         full_name = f"{user.first_name} {user.last_name}".strip()
+        
+        # Extract images and video data
+        images = validated_data.pop('images', [])
+        youtube_url = validated_data.pop('youtube_url', None)
+        video_title = validated_data.pop('video_title', '')
         
         # Create patient profile
         profile = PatientProfile.objects.create(
@@ -208,6 +293,24 @@ class PatientRegisterSerializer(serializers.ModelSerializer):
             short_description=short_description,
             long_story=long_story
         )
+        
+        # Create patient images if provided
+        if images:
+            for index, image in enumerate(images):
+                PatientImage.objects.create(
+                    patient_profile=profile,
+                    image=image,
+                    display_order=index,
+                    is_primary=(index == 0 and not photo)  # First image is primary if no profile photo
+                )
+        
+        # Create patient video if YouTube URL provided
+        if youtube_url:
+            PatientVideo.objects.create(
+                patient_profile=profile,
+                youtube_url=youtube_url,
+                video_title=video_title or f"{full_name}'s Story"
+            )
         
         # TODO: Send verification email here
         return user
@@ -472,6 +575,38 @@ class AdminBulkTimelineCreateSerializer(serializers.Serializer):
     """
     patient_profile_id = serializers.IntegerField()
     events = AdminTimelineEventSerializer(many=True)
+
+
+class AdminPatientFeaturedSerializer(serializers.Serializer):
+    """
+    Serializer for updating patient featured status (admin only).
+    """
+    is_featured = serializers.BooleanField(
+        required=True,
+        help_text="Set to true to feature patient on homepage, false to unfeature"
+    )
+    
+    def validate_is_featured(self, value):
+        """
+        Validate that we're not featuring more than a reasonable number of patients.
+        """
+        if value:
+            # Check current featured count
+            from .models import PatientProfile
+            current_featured = PatientProfile.objects.filter(is_featured=True).count()
+            
+            # Get the patient we're updating (if it's not already featured)
+            patient_id = self.context.get('patient_id')
+            if patient_id:
+                try:
+                    patient = PatientProfile.objects.get(id=patient_id)
+                    if not patient.is_featured and current_featured >= 10:
+                        raise serializers.ValidationError(
+                            f"Cannot feature more than 10 patients. Currently {current_featured} patients are featured."
+                        )
+                except PatientProfile.DoesNotExist:
+                    pass
+        return value
 
 
 # ============ DONATION SERIALIZERS ============

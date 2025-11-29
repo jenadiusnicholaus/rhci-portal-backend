@@ -21,7 +21,7 @@ class CountryLookupSerializer(serializers.ModelSerializer):
 
 
 class PatientRegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
+    phone_number = serializers.CharField(max_length=20, required=True)
     gender = serializers.ChoiceField(choices=PatientProfile.GENDER_CHOICES, write_only=True)
     country = serializers.CharField(max_length=100, write_only=True)
     short_description = serializers.CharField(max_length=255, write_only=True)
@@ -30,7 +30,7 @@ class PatientRegisterSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = CustomUser
-        fields = ['email', 'password', 'first_name', 'last_name', 'date_of_birth', 
+        fields = ['email', 'phone_number', 'first_name', 'last_name', 'date_of_birth', 
                   'gender', 'country', 'short_description', 'long_story']
     
     def validate_email(self, value):
@@ -38,9 +38,10 @@ class PatientRegisterSerializer(serializers.ModelSerializer):
             raise EmailAlreadyExistsException()
         return value
     
-    def validate_password(self, value):
-        if len(value) < 8:
-            raise PasswordTooShortException()
+    def validate_phone_number(self, value):
+        # Basic validation - ensure it's not empty and has reasonable length
+        if not value or len(value) < 10:
+            raise serializers.ValidationError("Phone number must be at least 10 digits")
         return value
     
     def validate_date_of_birth(self, value):
@@ -51,22 +52,35 @@ class PatientRegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # Extract profile-specific fields
         gender = validated_data.pop('gender')
-        country = validated_data.pop('country')
+        country_name = validated_data.pop('country')
         short_description = validated_data.pop('short_description')
         long_story = validated_data.pop('long_story')
         
-        # Create user
-        user = CustomUser.objects.create_user(
-            **validated_data,
-            user_type='PATIENT'
+        # Create user without password (patient accounts don't need login initially)
+        user = CustomUser.objects.create(
+            email=validated_data['email'],
+            phone_number=validated_data['phone_number'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name'],
+            date_of_birth=validated_data['date_of_birth'],
+            user_type='PATIENT',
+            is_active=True  # Active by default, but not verified
         )
+        
+        # Get or create country lookup
+        country_fk = None
+        if country_name:
+            country_fk, _ = CountryLookup.objects.get_or_create(
+                name=country_name,
+                defaults={'code': country_name[:3].upper(), 'display_order': 999}
+            )
         
         # Create patient profile with registration data
         PatientProfile.objects.create(
             user=user,
             full_name=f"{user.first_name} {user.last_name}".strip(),
             gender=gender,
-            country=country,
+            country_fk=country_fk,
             short_description=short_description,
             long_story=long_story,
             # Medical details filled by admin during verification
@@ -101,7 +115,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'user_type', 'first_name', 'last_name', 
+        fields = ['id', 'email', 'phone_number', 'user_type', 'first_name', 'last_name', 
                   'is_verified', 'is_patient_verified', 'date_joined', 'profile_picture_url']
         read_only_fields = ['email', 'user_type', 'is_verified', 'date_joined']
     

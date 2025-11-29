@@ -192,7 +192,7 @@ GET    /api/auth/public/patients/{id}/              - View patient detail
 GET    /api/auth/public/patients/featured/          - Featured patients
 ```
 
-## 🔄 Workflow Example
+## 🟠 Workflow Example
 
 ### Complete Patient Journey
 

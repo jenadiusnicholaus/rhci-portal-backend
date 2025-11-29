@@ -8,7 +8,7 @@ class Command(BaseCommand):
     help = 'Migrate country string values to CountryLookup ForeignKeys'
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.WARNING('\n🔄 Starting country data migration...\n'))
+        self.stdout.write(self.style.WARNING('\n🟠 Starting country data migration...\n'))
         
         # Migrate patient countries
         patients = PatientProfile.objects.all()

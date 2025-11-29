@@ -6,6 +6,7 @@ from .admin_views import (
     AdminPatientApprovalView,
     AdminPatientPublishView,
     PatientActivationView,
+    AdminPatientFeaturedToggleView,
     # New Comprehensive Admin Patient Management
     AdminPatientManagementListView,
     AdminPatientManagementDetailView,
@@ -16,10 +17,15 @@ from .admin_views import (
     AdminTimelineEventUpdateView,
     AdminTimelineEventDeleteView,
     AdminTimelineEventListView,
+    # Admin Cost Breakdown Management
+    AdminCostBreakdownListCreateView,
+    AdminCostBreakdownDetailView,
+    AdminBulkCostBreakdownCreateView,
     # Public Patient Views
     PublicPatientDetailView,
     PublicPatientListView,
     PublicFeaturedPatientsView,
+    PublicPatientDonorsListView,
 )
 from .dashboard_stats import AdminDashboardStatsView
 from .donation_views import (
@@ -52,11 +58,17 @@ urlpatterns = [
     path('admin/<int:id>/approve/', AdminPatientApprovalView.as_view(), name='admin_patient_approval'),
     path('admin/<int:id>/publish/', AdminPatientPublishView.as_view(), name='admin_patient_publish'),
     path('admin/<int:id>/activate/', PatientActivationView.as_view(), name='patient_activation'),
+    path('admin/<int:id>/featured/', AdminPatientFeaturedToggleView.as_view(), name='admin_patient_featured_toggle'),
     
     # ============ ADMIN DONATION AMOUNT MANAGEMENT ============
     path('admin/<int:patient_id>/donation-amounts/', AdminDonationAmountListCreateView.as_view(), name='admin_donation_amounts'),
     path('admin/<int:patient_id>/donation-amounts/<int:id>/', AdminDonationAmountDetailView.as_view(), name='admin_donation_amount_detail'),
     path('admin/<int:patient_id>/donation-amounts/bulk-create/', AdminBulkCreateDonationAmountsView.as_view(), name='admin_donation_amounts_bulk_create'),
+    
+    # ============ ADMIN COST BREAKDOWN MANAGEMENT ============
+    path('admin/<int:patient_id>/cost-breakdowns/', AdminCostBreakdownListCreateView.as_view(), name='admin_cost_breakdown_list_create'),
+    path('admin/<int:patient_id>/cost-breakdowns/<int:id>/', AdminCostBreakdownDetailView.as_view(), name='admin_cost_breakdown_detail'),
+    path('admin/<int:patient_id>/cost-breakdowns/bulk/', AdminBulkCostBreakdownCreateView.as_view(), name='admin_cost_breakdown_bulk_create'),
     
     # ============ ADMIN TIMELINE MANAGEMENT ============
     path('admin/<int:patient_id>/timeline/', AdminTimelineEventListView.as_view(), name='admin_timeline_list'),
@@ -69,6 +81,7 @@ urlpatterns = [
     path('public/', PublicPatientListView.as_view(), name='public_patient_list'),
     path('public/<int:id>/', PublicPatientDetailView.as_view(), name='public_patient_detail'),
     path('public/featured/', PublicFeaturedPatientsView.as_view(), name='public_featured_patients'),
+    path('public/<int:patient_id>/donors/', PublicPatientDonorsListView.as_view(), name='public_patient_donors'),
     
     # ============ PUBLIC DONATION AMOUNTS ============
     # Public access - for donors to see suggested amounts during donation

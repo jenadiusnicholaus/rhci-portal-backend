@@ -1,5 +1,8 @@
 from django.urls import path
-from .views import LoginView, UserProfileView, CountryLookupListView, ExpenseTypeLookupListView
+from .views import (
+    LoginView, UserProfileView, CountryLookupListView, ExpenseTypeLookupListView,
+    AdminExpenseTypeListCreateView, AdminExpenseTypeDetailView
+)
 from donor.views import DonorRegisterView, DonorProfileView
 from patient.views import PatientRegisterView, PatientProfileView
 
@@ -25,4 +28,8 @@ urlpatterns = [
     # ============ LOOKUPS ============
     path('lookups/countries/', CountryLookupListView.as_view(), name='country_lookup'),
     path('lookups/expense-types/', ExpenseTypeLookupListView.as_view(), name='expense_type_lookup'),
+    
+    # ============ ADMIN EXPENSE TYPE MANAGEMENT ============
+    path('admin/expense-types/', AdminExpenseTypeListCreateView.as_view(), name='admin_expense_type_list_create'),
+    path('admin/expense-types/<int:id>/', AdminExpenseTypeDetailView.as_view(), name='admin_expense_type_detail'),
 ]

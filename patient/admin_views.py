@@ -21,7 +21,8 @@ from .serializers import (
     AdminPatientManagementSerializer,
     AdminPatientCreateSerializer,
     AdminPatientBulkActionSerializer,
-    AdminPatientStatsSerializer
+    AdminPatientStatsSerializer,
+    AdminPatientFeaturedSerializer
 )
 
 
@@ -560,8 +561,8 @@ class PublicPatientDetailView(generics.RetrieveAPIView):
     lookup_field = 'id'
     
     @swagger_auto_schema(
-        operation_summary="View Patient Profile",
-        operation_description="View complete patient profile including story, timeline, funding details, and cost breakdown. Only published patients are accessible.",
+        operation_summary="🟠 View Patient Profile",
+        operation_description="**UPDATED** - View complete patient profile including story, timeline, funding details, and cost breakdown. Now includes patient images and video. Only published patients are accessible.",
         tags=['Public - Patient Profiles'],
         responses={
             200: PatientProfileSerializer,
@@ -575,7 +576,7 @@ class PublicPatientDetailView(generics.RetrieveAPIView):
         return PatientProfile.objects.filter(
             user__is_patient_verified=True,
             status__in=['PUBLISHED', 'AWAITING_FUNDING', 'FULLY_FUNDED', 'TREATMENT_COMPLETE']
-        ).select_related('user').prefetch_related('cost_breakdowns', 'timeline_events')
+        ).select_related('user', 'country_fk', 'video').prefetch_related('cost_breakdowns', 'timeline_events', 'images')
 
 
 class PublicPatientListView(generics.ListAPIView):
@@ -591,8 +592,8 @@ class PublicPatientListView(generics.ListAPIView):
     ordering = ['-created_at']
     
     @swagger_auto_schema(
-        operation_summary="List All Patients",
-        operation_description="Browse all published patient profiles with advanced filtering and search. Perfect for donor browsing.",
+        operation_summary="🟠 List All Patients",
+        operation_description="**UPDATED** - Browse all published patient profiles with advanced filtering and search. Perfect for donor browsing. Now includes patient images and video. Optimized with better query performance.",
         tags=['Public - Patient Profiles'],
         manual_parameters=[
             openapi.Parameter('country', openapi.IN_QUERY, description="Filter by country", type=openapi.TYPE_STRING),
@@ -613,7 +614,7 @@ class PublicPatientListView(generics.ListAPIView):
         queryset = PatientProfile.objects.filter(
             user__is_patient_verified=True,
             status__in=['PUBLISHED', 'AWAITING_FUNDING', 'FULLY_FUNDED']
-        ).select_related('user').prefetch_related('cost_breakdowns', 'timeline_events')
+        ).select_related('user', 'country_fk', 'video').prefetch_related('cost_breakdowns', 'timeline_events', 'images')
         
         # Filter by country
         country = self.request.query_params.get('country', None)
@@ -649,8 +650,8 @@ class PublicFeaturedPatientsView(generics.ListAPIView):
     permission_classes = []  # Public access
     
     @swagger_auto_schema(
-        operation_summary="Featured Patients (Homepage)",
-        operation_description="Get up to 6 featured patients for homepage display. Only returns published and verified patients marked as featured.",
+        operation_summary="🟠 Featured Patients (Homepage)",
+        operation_description="**UPDATED** - Get up to 6 featured patients for homepage display. Only returns published and verified patients marked as featured. Now includes patient images and video. Optimized with better query performance.",
         tags=['Public - Patient Profiles'],
         responses={
             200: PatientProfileSerializer(many=True)
@@ -664,8 +665,8 @@ class PublicFeaturedPatientsView(generics.ListAPIView):
             user__is_patient_verified=True,
             status__in=['PUBLISHED', 'AWAITING_FUNDING', 'FULLY_FUNDED'],
             is_featured=True
-        ).select_related('user').prefetch_related(
-            'cost_breakdowns', 'timeline_events'
+        ).select_related('user', 'country_fk', 'video').prefetch_related(
+            'cost_breakdowns', 'timeline_events', 'images'
         ).order_by('-created_at')[:6]  # Limit to 6 featured patients
 
 
@@ -950,6 +951,86 @@ class AdminPatientBulkActionView(APIView):
         })
 
 
+class AdminPatientFeaturedToggleView(APIView):
+    """
+    Admin endpoint to toggle patient featured status.
+    Featured patients appear on the homepage.
+    """
+    permission_classes = [IsAdminUser]
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 [ADMIN] Toggle Patient Featured Status",
+        operation_description="**NEW ENDPOINT** - Set or unset a patient as featured for homepage display. Only published patients should be featured. Maximum 10 patients can be featured at once.",
+        tags=['Admin - Patient Review & Management'],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['is_featured'],
+            properties={
+                'is_featured': openapi.Schema(
+                    type=openapi.TYPE_BOOLEAN,
+                    description='Set to true to feature patient, false to unfeature'
+                )
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                description="Featured status updated successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'patient_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'is_featured': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        'featured_count': openapi.Schema(type=openapi.TYPE_INTEGER, description='Total number of featured patients')
+                    }
+                )
+            ),
+            400: "Validation error",
+            404: "Patient not found"
+        }
+    )
+    def patch(self, request, id):
+        """Update featured status for a patient"""
+        from .serializers import AdminPatientFeaturedSerializer
+        
+        # Get patient
+        patient = get_object_or_404(PatientProfile, id=id)
+        
+        # Validate input
+        serializer = AdminPatientFeaturedSerializer(
+            data=request.data,
+            context={'patient_id': id}
+        )
+        serializer.is_valid(raise_exception=True)
+        
+        is_featured = serializer.validated_data['is_featured']
+        
+        # Check if patient is published (only published patients should be featured)
+        if is_featured and patient.status not in ['PUBLISHED', 'AWAITING_FUNDING', 'FULLY_FUNDED']:
+            return Response(
+                {
+                    'error': 'Only published patients can be featured',
+                    'current_status': patient.status
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update featured status
+        patient.is_featured = is_featured
+        patient.save(update_fields=['is_featured'])
+        
+        # Get updated count
+        featured_count = PatientProfile.objects.filter(is_featured=True).count()
+        
+        return Response({
+            'message': f'Patient {"featured" if is_featured else "unfeatured"} successfully',
+            'patient_id': patient.id,
+            'patient_name': patient.full_name,
+            'is_featured': patient.is_featured,
+            'featured_count': featured_count
+        }, status=status.HTTP_200_OK)
+
+
 class AdminPatientStatsView(APIView):
     """
     Admin endpoint for patient statistics and dashboard data.
@@ -1014,3 +1095,358 @@ class AdminPatientStatsView(APIView):
         
         serializer = AdminPatientStatsSerializer(stats_data)
         return Response(serializer.data)
+
+
+class PublicPatientDonorsListView(generics.ListAPIView):
+    """
+    Public endpoint to list all donors for a specific patient.
+    Shows donor name, photo, amount, and message (respects anonymity).
+    """
+    permission_classes = []  # Public access
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 List Patient Donors",
+        operation_description="**NEW ENDPOINT** - Get list of all donors who donated to a specific patient. Respects donor anonymity settings and privacy preferences. Anonymous donors show as 'Anonymous Donor' without profile information.",
+        tags=['Public - Patient Profiles'],
+        responses={
+            200: openapi.Response(
+                description="List of donors for the patient",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'id': openapi.Schema(type=openapi.TYPE_INTEGER, description='Donation ID'),
+                            'donor_name': openapi.Schema(type=openapi.TYPE_STRING, description='Donor name or "Anonymous Donor"'),
+                            'donor_photo': openapi.Schema(type=openapi.TYPE_STRING, description='Donor photo path (null for anonymous)'),
+                            'donor_photo_url': openapi.Schema(type=openapi.TYPE_STRING, description='Full URL to donor photo (null for anonymous)'),
+                            'amount': openapi.Schema(type=openapi.TYPE_NUMBER, description='Donation amount'),
+                            'donation_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME, description='Date of donation'),
+                            'message': openapi.Schema(type=openapi.TYPE_STRING, description='Optional message from donor'),
+                            'is_anonymous': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Whether donation is anonymous')
+                        }
+                    )
+                )
+            ),
+            404: "Patient not found"
+        }
+    )
+    def get(self, request, patient_id):
+        """Get all donors for a specific patient"""
+        from donor.models import Donation
+        
+        # Verify patient exists and is published
+        patient = get_object_or_404(
+            PatientProfile,
+            id=patient_id,
+            user__is_patient_verified=True,
+            status__in=['PUBLISHED', 'AWAITING_FUNDING', 'FULLY_FUNDED', 'TREATMENT_COMPLETE']
+        )
+        
+        # Get all completed donations for this patient
+        donations = Donation.objects.filter(
+            patient=patient,
+            status='COMPLETED'
+        ).select_related('donor', 'donor__donor_profile').order_by('-created_at')
+        
+        # Build donor list
+        donors_data = []
+        for donation in donations:
+            donor_info = {
+                'id': donation.id,
+                'amount': donation.amount,
+                'donation_date': donation.created_at,
+                'message': donation.message,
+                'is_anonymous': donation.is_anonymous
+            }
+            
+            if donation.is_anonymous:
+                # Anonymous donation
+                donor_info['donor_name'] = donation.anonymous_name or 'Anonymous Donor'
+                donor_info['donor_photo'] = None
+                donor_info['donor_photo_url'] = None
+            else:
+                # Authenticated donor
+                if donation.donor and hasattr(donation.donor, 'donor_profile'):
+                    profile = donation.donor.donor_profile
+                    donor_info['donor_name'] = profile.full_name or f"{donation.donor.first_name} {donation.donor.last_name}".strip() or 'Donor'
+                    
+                    # Add photo if not private
+                    if not profile.is_profile_private and profile.photo:
+                        donor_info['donor_photo'] = profile.photo.name
+                        donor_info['donor_photo_url'] = request.build_absolute_uri(profile.photo.url)
+                    else:
+                        donor_info['donor_photo'] = None
+                        donor_info['donor_photo_url'] = None
+                else:
+                    donor_info['donor_name'] = 'Donor'
+                    donor_info['donor_photo'] = None
+                    donor_info['donor_photo_url'] = None
+            
+            donors_data.append(donor_info)
+        
+        from donor.serializers import PatientDonorSerializer
+        serializer = PatientDonorSerializer(donors_data, many=True)
+        return Response(serializer.data)
+
+
+# ============ ADMIN TREATMENT COST BREAKDOWN MANAGEMENT ============
+
+class AdminCostBreakdownListCreateView(generics.ListCreateAPIView):
+    """
+    Admin endpoint to list and create cost breakdown items for a patient.
+    """
+    from .serializers import TreatmentCostBreakdownSerializer
+    serializer_class = TreatmentCostBreakdownSerializer
+    permission_classes = [IsAdminUser]
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 [ADMIN] List Patient Cost Breakdowns",
+        operation_description="**NEW ENDPOINT** - List all cost breakdown items for a specific patient. Shows expense types, amounts, and notes.",
+        tags=['Admin - Patient Review & Management'],
+        responses={
+            200: openapi.Response(
+                description="List of cost breakdown items",
+                examples={
+                    'application/json': [
+                        {
+                            'id': 1,
+                            'expense_type': 1,
+                            'expense_type_name': 'Surgery',
+                            'expense_type_slug': 'surgery',
+                            'amount': '5000.00',
+                            'notes': 'Heart surgery procedure',
+                            'created_at': '2025-11-29T10:00:00Z'
+                        }
+                    ]
+                }
+            ),
+            404: "Patient not found"
+        }
+    )
+    def get(self, request, patient_id):
+        """List all cost breakdowns for a patient"""
+        return super().get(request)
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 [ADMIN] Create Cost Breakdown Item",
+        operation_description="**NEW ENDPOINT** - Add a new cost breakdown item to a patient's treatment costs. Total cost is automatically calculated.",
+        tags=['Admin - Patient Review & Management'],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['expense_type', 'amount'],
+            properties={
+                'expense_type': openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    description='Expense type ID from ExpenseTypeLookup'
+                ),
+                'amount': openapi.Schema(
+                    type=openapi.TYPE_NUMBER,
+                    description='Cost amount for this expense'
+                ),
+                'notes': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description='Additional details about this expense'
+                )
+            },
+            example={
+                'expense_type': 1,
+                'amount': 5000.00,
+                'notes': 'Heart surgery procedure'
+            }
+        ),
+        responses={
+            201: openapi.Response(
+                description="Cost breakdown item created",
+                examples={
+                    'application/json': {
+                        'id': 1,
+                        'expense_type': 1,
+                        'expense_type_name': 'Surgery',
+                        'expense_type_slug': 'surgery',
+                        'amount': '5000.00',
+                        'notes': 'Heart surgery procedure',
+                        'created_at': '2025-11-29T10:00:00Z'
+                    }
+                }
+            ),
+            400: "Validation error",
+            404: "Patient not found"
+        }
+    )
+    def post(self, request, patient_id):
+        """Create a new cost breakdown item"""
+        return super().post(request)
+    
+    def get_queryset(self):
+        patient_id = self.kwargs['patient_id']
+        from .models import TreatmentCostBreakdown
+        return TreatmentCostBreakdown.objects.filter(
+            patient_profile_id=patient_id
+        ).select_related('expense_type')
+    
+    def perform_create(self, serializer):
+        patient_id = self.kwargs['patient_id']
+        # Verify patient exists
+        patient = get_object_or_404(PatientProfile, id=patient_id)
+        serializer.save(patient_profile=patient)
+
+
+class AdminCostBreakdownDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Admin endpoint to view, update, or delete a specific cost breakdown item.
+    """
+    from .serializers import TreatmentCostBreakdownSerializer
+    serializer_class = TreatmentCostBreakdownSerializer
+    permission_classes = [IsAdminUser]
+    lookup_field = 'id'
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 [ADMIN] Get Cost Breakdown Details",
+        operation_description="**NEW ENDPOINT** - Retrieve details of a specific cost breakdown item.",
+        tags=['Admin - Patient Review & Management'],
+        responses={
+            200: openapi.Response(description="Cost breakdown item details"),
+            404: "Cost breakdown not found"
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 [ADMIN] Update Cost Breakdown",
+        operation_description="**NEW ENDPOINT** - Update a cost breakdown item. Total treatment cost is automatically recalculated.",
+        tags=['Admin - Patient Review & Management'],
+        responses={
+            200: openapi.Response(description="Cost breakdown updated"),
+            400: "Validation error",
+            404: "Cost breakdown not found"
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 [ADMIN] Partial Update Cost Breakdown",
+        operation_description="**NEW ENDPOINT** - Partially update a cost breakdown item. Only provided fields will be updated.",
+        tags=['Admin - Patient Review & Management'],
+        responses={
+            200: openapi.Response(description="Cost breakdown updated"),
+            400: "Validation error",
+            404: "Cost breakdown not found"
+        }
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 [ADMIN] Delete Cost Breakdown",
+        operation_description="**NEW ENDPOINT** - Delete a cost breakdown item. Total treatment cost is automatically recalculated.",
+        tags=['Admin - Patient Review & Management'],
+        responses={
+            204: "Cost breakdown deleted",
+            404: "Cost breakdown not found"
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)
+    
+    def get_queryset(self):
+        patient_id = self.kwargs['patient_id']
+        from .models import TreatmentCostBreakdown
+        return TreatmentCostBreakdown.objects.filter(
+            patient_profile_id=patient_id
+        ).select_related('expense_type')
+
+
+class AdminBulkCostBreakdownCreateView(APIView):
+    """
+    Admin endpoint to create multiple cost breakdown items at once.
+    """
+    permission_classes = [IsAdminUser]
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 [ADMIN] Bulk Create Cost Breakdowns",
+        operation_description="**NEW ENDPOINT** - Create multiple cost breakdown items in a single request. Useful for setting up complete treatment cost structure.",
+        tags=['Admin - Patient Review & Management'],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['items'],
+            properties={
+                'items': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        required=['expense_type', 'amount'],
+                        properties={
+                            'expense_type': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'amount': openapi.Schema(type=openapi.TYPE_NUMBER),
+                            'notes': openapi.Schema(type=openapi.TYPE_STRING)
+                        }
+                    )
+                )
+            },
+            example={
+                'items': [
+                    {'expense_type': 1, 'amount': 5000.00, 'notes': 'Surgery'},
+                    {'expense_type': 2, 'amount': 1500.00, 'notes': 'Medication'},
+                    {'expense_type': 3, 'amount': 500.00, 'notes': 'Lab tests'}
+                ]
+            }
+        ),
+        responses={
+            201: openapi.Response(
+                description="Cost breakdown items created",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING),
+                        'created_count': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'total_cost': openapi.Schema(type=openapi.TYPE_NUMBER),
+                        'items': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_OBJECT)
+                        )
+                    }
+                )
+            ),
+            400: "Validation error",
+            404: "Patient not found"
+        }
+    )
+    def post(self, request, patient_id):
+        """Create multiple cost breakdown items"""
+        from .models import TreatmentCostBreakdown
+        from .serializers import TreatmentCostBreakdownSerializer
+        
+        # Verify patient exists
+        patient = get_object_or_404(PatientProfile, id=patient_id)
+        
+        items = request.data.get('items', [])
+        if not items or not isinstance(items, list):
+            return Response(
+                {'error': 'items field is required and must be an array'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        created_items = []
+        total_cost = 0
+        
+        for item_data in items:
+            serializer = TreatmentCostBreakdownSerializer(data=item_data)
+            if serializer.is_valid():
+                breakdown = serializer.save(patient_profile=patient)
+                created_items.append(TreatmentCostBreakdownSerializer(breakdown).data)
+                total_cost += breakdown.amount
+            else:
+                return Response(
+                    {'error': 'Validation failed', 'details': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        return Response({
+            'message': f'Successfully created {len(created_items)} cost breakdown items',
+            'created_count': len(created_items),
+            'total_cost': float(total_cost),
+            'items': created_items
+        }, status=status.HTTP_201_CREATED)

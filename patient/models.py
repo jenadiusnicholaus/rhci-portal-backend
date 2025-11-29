@@ -307,6 +307,88 @@ class PatientTimeline(models.Model):
         return False
 
 
+class PatientImage(models.Model):
+    """Model to store multiple images for a patient"""
+    patient_profile = models.ForeignKey(
+        PatientProfile,
+        on_delete=models.CASCADE,
+        related_name='images',
+        help_text="Patient profile this image belongs to"
+    )
+    image = models.ImageField(
+        upload_to='patient_images/',
+        help_text="Patient image"
+    )
+    caption = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Optional caption for the image"
+    )
+    display_order = models.IntegerField(
+        default=0,
+        help_text="Order to display images (lower numbers first)"
+    )
+    is_primary = models.BooleanField(
+        default=False,
+        help_text="Mark as primary/featured image"
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'patient_image'
+        ordering = ['display_order', '-uploaded_at']
+        verbose_name = 'Patient Image'
+        verbose_name_plural = 'Patient Images'
+    
+    def __str__(self):
+        return f"{self.patient_profile.full_name} - Image {self.id}"
+
+
+class PatientVideo(models.Model):
+    """Model to store YouTube video URL for a patient"""
+    patient_profile = models.OneToOneField(
+        PatientProfile,
+        on_delete=models.CASCADE,
+        related_name='video',
+        help_text="Patient profile this video belongs to"
+    )
+    youtube_url = models.URLField(
+        max_length=500,
+        help_text="YouTube video URL (e.g., https://www.youtube.com/watch?v=xxxxx)"
+    )
+    video_title = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Optional title for the video"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'patient_video'
+        verbose_name = 'Patient Video'
+        verbose_name_plural = 'Patient Videos'
+    
+    def __str__(self):
+        return f"{self.patient_profile.full_name} - Video"
+    
+    @property
+    def youtube_embed_url(self):
+        """Convert YouTube URL to embed URL"""
+        import re
+        # Extract video ID from various YouTube URL formats
+        patterns = [
+            r'(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)',
+            r'youtube\.com\/embed\/([^&\n?#]+)',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, self.youtube_url)
+            if match:
+                video_id = match.group(1)
+                return f"https://www.youtube.com/embed/{video_id}"
+        return self.youtube_url
+
+
 # Import donation models
 # Donation models are now in the donor app
 # from donor.models import Donation, DonationReceipt, DonationComment

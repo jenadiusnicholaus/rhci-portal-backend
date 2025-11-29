@@ -83,6 +83,21 @@ class PublicDonorProfileSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class PatientDonorSerializer(serializers.Serializer):
+    """Serializer for displaying donors who donated to a specific patient"""
+    id = serializers.IntegerField(read_only=True)
+    donor_name = serializers.CharField(read_only=True)
+    donor_photo = serializers.CharField(read_only=True, allow_null=True)
+    donor_photo_url = serializers.CharField(read_only=True, allow_null=True)
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    donation_date = serializers.DateTimeField(read_only=True)
+    message = serializers.CharField(read_only=True)
+    is_anonymous = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        fields = ['id', 'donor_name', 'donor_photo', 'donor_photo_url', 'amount', 'donation_date', 'message', 'is_anonymous']
+
+
 class DonorRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     

@@ -150,7 +150,7 @@ GET /api/auth/public/patients/featured/
 | `FULLY_FUNDED` | ✅ Yes | Funding complete |
 | `TREATMENT_COMPLETE` | ✅ Yes | Treatment finished |
 
-## 🔄 Typical Admin Workflow
+## 🟠 Typical Admin Workflow
 
 ```
 1. Patient Registers

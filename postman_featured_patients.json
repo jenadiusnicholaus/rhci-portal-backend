@@ -1,0 +1,179 @@
+{
+  "info": {
+    "name": "RHCI Featured Patients API",
+    "description": "API endpoints for managing and displaying featured patients",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Admin - Feature Patient",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"is_featured\": true\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1.0/patients/admin/1/featured/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1.0", "patients", "admin", "1", "featured", ""]
+        },
+        "description": "Set a patient as featured (admin only). Replace '1' with actual patient ID."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Unfeature Patient",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"is_featured\": false\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1.0/patients/admin/1/featured/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1.0", "patients", "admin", "1", "featured", ""]
+        },
+        "description": "Remove featured status from a patient (admin only)."
+      },
+      "response": []
+    },
+    {
+      "name": "Public - Get Featured Patients",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1.0/patients/public/featured/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1.0", "patients", "public", "featured", ""]
+        },
+        "description": "Get list of featured patients for homepage (public access, no auth required). Returns up to 6 featured patients."
+      },
+      "response": []
+    },
+    {
+      "name": "Public - Get All Patients",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1.0/patients/public/?page=1",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1.0", "patients", "public", ""],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "country",
+              "value": "Tanzania",
+              "disabled": true
+            },
+            {
+              "key": "funding_status",
+              "value": "awaiting_funding",
+              "disabled": true
+            },
+            {
+              "key": "search",
+              "value": "heart",
+              "disabled": true
+            }
+          ]
+        },
+        "description": "Get all published patients (not just featured). Supports filtering and search."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - Get Patient Stats",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1.0/patients/admin/stats/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1.0", "patients", "admin", "stats", ""]
+        },
+        "description": "Get comprehensive patient statistics including featured patient count (admin only)."
+      },
+      "response": []
+    },
+    {
+      "name": "Admin - List All Patients",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1.0/patients/admin/?status=PUBLISHED",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1.0", "patients", "admin", ""],
+          "query": [
+            {
+              "key": "status",
+              "value": "PUBLISHED"
+            },
+            {
+              "key": "search",
+              "value": "Peter",
+              "disabled": true
+            }
+          ]
+        },
+        "description": "List all patients for admin management. Supports filtering by status."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

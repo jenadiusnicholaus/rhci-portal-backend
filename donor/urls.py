@@ -8,6 +8,11 @@ from .views import (
     AdminDonationListView,
     AdminDonationDetailView,
     PatientDonationsView,
+    # Admin Donor Management
+    AdminDonorListView,
+    AdminDonorDetailView,
+    AdminDonorActivationView,
+    AdminDonorStatsView,
 )
 from .payment_views import (
     AzamPayMobileMoneyCheckoutView,
@@ -38,6 +43,13 @@ urlpatterns = [
     # Admin - Donation management
     path('admin/donations/', AdminDonationListView.as_view(), name='admin_donation_list'),
     path('admin/donations/<int:id>/', AdminDonationDetailView.as_view(), name='admin_donation_detail'),
+    
+    # ============ ADMIN DONOR MANAGEMENT ============
+    # Admin - Donor account management
+    path('admin/donors/', AdminDonorListView.as_view(), name='admin_donor_list'),
+    path('admin/donors/<int:id>/', AdminDonorDetailView.as_view(), name='admin_donor_detail'),
+    path('admin/donors/<int:id>/activate/', AdminDonorActivationView.as_view(), name='admin_donor_activation'),
+    path('admin/donors/stats/', AdminDonorStatsView.as_view(), name='admin_donor_stats'),
     
     # ============ PAYMENT ENDPOINTS (AZAM PAY) ============
     # Mobile money payment

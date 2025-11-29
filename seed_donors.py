@@ -114,7 +114,7 @@ def create_donor_account(email, password, first_name, last_name, photo_url=None)
         
         # Download and assign photo if URL provided
         if photo_url:
-            print(f"  🔄 Downloading profile photo...")
+            print(f"  🟠 Downloading profile photo...")
             image_content = download_image(photo_url)
             if image_content:
                 filename = f"donor_{user.id}_{uuid.uuid4().hex[:8]}.jpg"

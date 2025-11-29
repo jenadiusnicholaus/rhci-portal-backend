@@ -104,7 +104,7 @@ class Campaign(models.Model):
     raised_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=0.00,
+        default=Decimal('0.00'),
         help_text="Amount raised so far"
     )
     
@@ -172,8 +172,9 @@ class Campaign(models.Model):
     def funding_progress(self):
         """Calculate funding progress percentage"""
         if self.goal_amount > 0:
-            return (self.raised_amount / self.goal_amount) * 100
-        return 0
+            # Convert to float for percentage calculation
+            return float((self.raised_amount / self.goal_amount) * Decimal('100'))
+        return 0.0
     
     @property
     def is_funded(self):

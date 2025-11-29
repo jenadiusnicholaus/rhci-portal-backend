@@ -42,6 +42,7 @@ class CampaignUpdateSerializer(serializers.ModelSerializer):
 class CampaignCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating campaigns"""
     photos = CampaignPhotoSerializer(many=True, read_only=True)
+    goal_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     
     class Meta:
         model = Campaign
@@ -69,6 +70,8 @@ class CampaignSerializer(serializers.ModelSerializer):
     payment_methods = PaymentMethodSerializer(many=True, read_only=True)
     photos = CampaignPhotoSerializer(many=True, read_only=True)
     updates = CampaignUpdateSerializer(many=True, read_only=True)
+    goal_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    raised_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     funding_progress = serializers.ReadOnlyField()
     remaining_amount = serializers.ReadOnlyField()
     is_funded = serializers.ReadOnlyField()
@@ -98,6 +101,8 @@ class CampaignDetailSerializer(serializers.ModelSerializer):
     payment_methods = PaymentMethodSerializer(many=True, read_only=True)
     photos = CampaignPhotoSerializer(many=True, read_only=True)
     updates = CampaignUpdateSerializer(many=True, read_only=True)
+    goal_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    raised_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     funding_progress = serializers.ReadOnlyField()
     remaining_amount = serializers.ReadOnlyField()
     is_funded = serializers.ReadOnlyField()

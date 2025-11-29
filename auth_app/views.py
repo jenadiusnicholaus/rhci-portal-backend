@@ -29,8 +29,8 @@ class PatientRegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        operation_summary="Register as Patient",
-        operation_description="Create a new patient account with personal details and medical story. Requires admin approval before publication.",
+        operation_summary="🟠 Register as Patient",
+        operation_description="**UPDATED** - Create a new patient account with personal details and medical story. Now supports multiple Base64-encoded images and YouTube video URL. No password required - uses phone number instead. Requires admin approval before publication.",
         tags=['Authentication & Registration'],
         responses={
             201: openapi.Response('Registration successful', UserSerializer),
@@ -279,3 +279,143 @@ class ExpenseTypeLookupListView(generics.ListAPIView):
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
+
+
+# ============ ADMIN EXPENSE TYPE MANAGEMENT ============
+
+class AdminExpenseTypeListCreateView(generics.ListCreateAPIView):
+    """
+    🔴 NEW - Admin API to list and create expense types for cost breakdowns.
+    """
+    serializer_class = ExpenseTypeLookupSerializer
+    permission_classes = [IsAdminUser]
+    queryset = ExpenseTypeLookup.objects.all().order_by('display_order', 'name')
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 List All Expense Types (Admin)",
+        operation_description="""
+        Admin endpoint to retrieve all expense types including inactive ones.
+        Returns expense types ordered by display_order and name.
+        """,
+        tags=['Admin - Expense Type Management'],
+        responses={
+            200: ExpenseTypeLookupSerializer(many=True)
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 Create New Expense Type (Admin)",
+        operation_description="""
+        Admin endpoint to create a new expense type for treatment cost breakdowns.
+        
+        **Required fields:**
+        - name: Display name (e.g., "Hospital Fees")
+        - slug: URL-friendly identifier (e.g., "hospital-fees")
+        
+        **Optional fields:**
+        - description: Detailed description of the expense type
+        - is_active: Whether this expense type is active (default: true)
+        - display_order: Order to display in breakdown lists (default: 0)
+        """,
+        tags=['Admin - Expense Type Management'],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['name', 'slug'],
+            properties={
+                'name': openapi.Schema(type=openapi.TYPE_STRING, example='Transportation'),
+                'slug': openapi.Schema(type=openapi.TYPE_STRING, example='transportation'),
+                'description': openapi.Schema(type=openapi.TYPE_STRING, example='Patient transportation and travel costs'),
+                'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN, default=True),
+                'display_order': openapi.Schema(type=openapi.TYPE_INTEGER, default=0),
+            }
+        ),
+        responses={
+            201: ExpenseTypeLookupSerializer,
+            400: 'Bad Request - Validation errors'
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
+
+class AdminExpenseTypeDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    🔴 NEW - Admin API to retrieve, update, or delete a specific expense type.
+    """
+    serializer_class = ExpenseTypeLookupSerializer
+    permission_classes = [IsAdminUser]
+    queryset = ExpenseTypeLookup.objects.all()
+    lookup_field = 'id'
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 Get Expense Type Details (Admin)",
+        operation_description="Admin endpoint to retrieve details of a specific expense type by ID.",
+        tags=['Admin - Expense Type Management'],
+        responses={
+            200: ExpenseTypeLookupSerializer,
+            404: 'Not Found - Expense type does not exist'
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 Update Expense Type (Admin)",
+        operation_description="""
+        Admin endpoint to update an expense type. 
+        Use PUT for full update or PATCH for partial update.
+        
+        **Note:** Changing slug may affect existing cost breakdowns.
+        """,
+        tags=['Admin - Expense Type Management'],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'name': openapi.Schema(type=openapi.TYPE_STRING, example='Medical Transportation'),
+                'slug': openapi.Schema(type=openapi.TYPE_STRING, example='medical-transportation'),
+                'description': openapi.Schema(type=openapi.TYPE_STRING, example='Updated description'),
+                'is_active': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                'display_order': openapi.Schema(type=openapi.TYPE_INTEGER),
+            }
+        ),
+        responses={
+            200: ExpenseTypeLookupSerializer,
+            400: 'Bad Request - Validation errors',
+            404: 'Not Found - Expense type does not exist'
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 Partially Update Expense Type (Admin)",
+        operation_description="Admin endpoint to partially update an expense type (only provided fields will be updated).",
+        tags=['Admin - Expense Type Management'],
+        responses={
+            200: ExpenseTypeLookupSerializer,
+            400: 'Bad Request - Validation errors',
+            404: 'Not Found - Expense type does not exist'
+        }
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 Delete Expense Type (Admin)",
+        operation_description="""
+        Admin endpoint to delete an expense type.
+        
+        **Warning:** This will fail if the expense type is used in existing cost breakdowns.
+        Consider setting is_active=false instead of deleting.
+        """,
+        tags=['Admin - Expense Type Management'],
+        responses={
+            204: 'Successfully deleted',
+            400: 'Bad Request - Cannot delete expense type in use',
+            404: 'Not Found - Expense type does not exist'
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)

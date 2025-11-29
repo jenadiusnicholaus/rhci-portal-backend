@@ -185,7 +185,7 @@ def seed_patient_images():
         assigned = False
         for url_index in range(min(3, len(image_urls))):
             url = image_urls[(i + url_index) % len(image_urls)]
-            print(f"  🔄 Trying: {url[:60]}...")
+            print(f"  🟠 Trying: {url[:60]}...")
             
             # Download image
             image_content = download_image(url)
@@ -253,7 +253,7 @@ if __name__ == "__main__":
         clear_patient_images()
     else:
         if args.force:
-            print("🔄 Force mode: Clearing existing images first...")
+            print("🟠 Force mode: Clearing existing images first...")
             # Clear images without confirmation in force mode
             patients_with_photos = PatientProfile.objects.exclude(photo__isnull=True).exclude(photo='')
             for patient in patients_with_photos:

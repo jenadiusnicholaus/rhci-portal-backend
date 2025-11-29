@@ -36,7 +36,7 @@ class PatientProfileAdmin(admin.ModelAdmin):
     list_filter = ['status', 'gender', 'created_at']
     search_fields = ['full_name', 'user__email', 'diagnosis']
     readonly_fields = [
-        'cost_breakdown_total', 'funding_percentage', 
+        'age', 'cost_breakdown_total', 'funding_percentage', 
         'funding_remaining', 'other_contributions', 'created_at', 'updated_at'
     ]
     fieldsets = (
