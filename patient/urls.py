@@ -5,6 +5,7 @@ from .admin_views import (
     AdminPatientDetailView,
     AdminPatientApprovalView,
     AdminPatientPublishView,
+    PatientActivationView,
     # New Comprehensive Admin Patient Management
     AdminPatientManagementListView,
     AdminPatientManagementDetailView,
@@ -50,6 +51,7 @@ urlpatterns = [
     path('admin/<int:id>/', AdminPatientDetailView.as_view(), name='admin_patient_detail'),
     path('admin/<int:id>/approve/', AdminPatientApprovalView.as_view(), name='admin_patient_approval'),
     path('admin/<int:id>/publish/', AdminPatientPublishView.as_view(), name='admin_patient_publish'),
+    path('admin/<int:id>/activate/', PatientActivationView.as_view(), name='patient_activation'),
     
     # ============ ADMIN DONATION AMOUNT MANAGEMENT ============
     path('admin/<int:patient_id>/donation-amounts/', AdminDonationAmountListCreateView.as_view(), name='admin_donation_amounts'),

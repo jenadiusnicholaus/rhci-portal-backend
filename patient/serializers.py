@@ -273,6 +273,20 @@ class AdminPatientApprovalSerializer(serializers.Serializer):
         return data
 
 
+class PatientActivationSerializer(serializers.Serializer):
+    """
+    Serializer for activating/deactivating patient accounts.
+    """
+    is_active = serializers.BooleanField(
+        help_text="True to activate, False to deactivate"
+    )
+    reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Optional reason for deactivation"
+    )
+
+
 class AdminPatientPublishSerializer(serializers.Serializer):
     """
     Serializer for admin to publish patient profiles.

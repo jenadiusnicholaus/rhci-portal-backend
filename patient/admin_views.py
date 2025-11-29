@@ -14,6 +14,7 @@ from .models import PatientProfile, PatientTimeline
 from .serializers import (
     AdminPatientReviewSerializer,
     AdminPatientApprovalSerializer,
+    PatientActivationSerializer,
     AdminPatientPublishSerializer,
     AdminTimelineEventSerializer,
     PatientProfileSerializer,
@@ -299,6 +300,109 @@ class AdminPatientPublishView(APIView):
             return Response({
                 'message': 'Patient profile unpublished.'
             }, status=status.HTTP_200_OK)
+
+
+class PatientActivationView(APIView):
+    """
+    Admin endpoint to activate or deactivate patient accounts.
+    Controls whether patient can log in and access their profile.
+    """
+    permission_classes = [IsAdminUser]
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Activate/Deactivate Patient Account",
+        operation_description="""
+        Activate or deactivate a patient user account.
+        
+        **Activate (is_active: true)**:
+        - Patient can login
+        - Patient profile visible
+        - Can receive donations
+        
+        **Deactivate (is_active: false)**:
+        - Patient cannot login
+        - Profile hidden from public
+        - Cannot receive new donations
+        """,
+        tags=['Admin - Patient Review & Management'],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['is_active'],
+            properties={
+                'is_active': openapi.Schema(
+                    type=openapi.TYPE_BOOLEAN,
+                    description='True to activate, False to deactivate'
+                ),
+                'reason': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description='Optional reason for deactivation (required if deactivating)'
+                )
+            }
+        ),
+        responses={
+            200: openapi.Response('Account activation status changed', AdminPatientReviewSerializer),
+            400: 'Bad Request - Invalid data',
+            403: 'Forbidden - Admin access required',
+            404: 'Patient not found'
+        }
+    )
+    def post(self, request, id):
+        """Activate or deactivate patient account"""
+        try:
+            patient_profile = get_object_or_404(PatientProfile, id=id)
+            
+            serializer = PatientActivationSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            is_active = serializer.validated_data.get('is_active')
+            reason = serializer.validated_data.get('reason', '')
+            
+            # Get the user
+            user = patient_profile.user
+            old_status = user.is_active
+            
+            # Update user status
+            user.is_active = is_active
+            user.save()
+            
+            # Create timeline event
+            if is_active and not old_status:
+                # Activated
+                event_type = 'ACCOUNT_ACTIVATED'
+                title = 'Account Activated'
+                description = f'Patient account activated by admin {request.user.email}'
+            elif not is_active and old_status:
+                # Deactivated
+                event_type = 'ACCOUNT_DEACTIVATED'
+                title = 'Account Deactivated'
+                description = f'Patient account deactivated by admin {request.user.email}'
+                if reason:
+                    description += f': {reason}'
+            else:
+                # No change
+                return Response({
+                    'message': f'Account already {"activated" if is_active else "deactivated"}.',
+                    'patient': AdminPatientReviewSerializer(patient_profile).data
+                }, status=status.HTTP_200_OK)
+            
+            PatientTimeline.objects.create(
+                patient_profile=patient_profile,
+                event_type=event_type,
+                title=title,
+                description=description,
+                created_by=request.user,
+                is_visible=False
+            )
+            
+            return Response({
+                'message': f'Patient account {"activated" if is_active else "deactivated"} successfully.',
+                'patient': AdminPatientReviewSerializer(patient_profile).data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ============ ADMIN TIMELINE MANAGEMENT VIEWS ============
