@@ -8,11 +8,13 @@ from .views import (
     AdminDonationListView,
     AdminDonationDetailView,
     PatientDonationsView,
+    MyDonorStatsView,
     # Admin Donor Management
     AdminDonorListView,
     AdminDonorDetailView,
     AdminDonorActivationView,
     AdminDonorStatsView,
+    PublicDonorStatsView,
 )
 from .payment_views import (
     AzamPayMobileMoneyCheckoutView,
@@ -28,6 +30,7 @@ urlpatterns = [
     # Public access - read-only for public donors
     path('public/', DonorProfileListView.as_view(), name='public_donor_list'),
     path('public/<int:id>/', PublicDonorProfileView.as_view(), name='public_donor_detail'),
+    path('public/stats/', PublicDonorStatsView.as_view(), name='public_donor_stats'),
     
     # ============ DONATION ENDPOINTS ============
     # Public - Create donation (anonymous or authenticated)
@@ -36,9 +39,10 @@ urlpatterns = [
     # Public - View patient donations
     path('donations/patient/<int:patient_id>/', PatientDonationsView.as_view(), name='patient_donations'),
     
-    # Authenticated - My donations
+    # Authenticated - My donations and stats
     path('donations/my-donations/', MyDonationsView.as_view(), name='my_donations'),
     path('donations/<int:id>/', DonationDetailView.as_view(), name='donation_detail'),
+    path('my-stats/', MyDonorStatsView.as_view(), name='my_donor_stats'),
     
     # Admin - Donation management
     path('admin/donations/', AdminDonationListView.as_view(), name='admin_donation_list'),

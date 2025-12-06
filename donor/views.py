@@ -137,6 +137,163 @@ class DonorProfileView(generics.RetrieveUpdateAPIView):
             raise DonorProfileNotFoundException()
 
 
+class MyDonorStatsView(APIView):
+    """
+    Get the authenticated donor's personal donation statistics.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 My Donor Statistics",
+        operation_description="""
+        **NEW ENDPOINT** - Get your personal donation statistics as a donor.
+        
+        Shows:
+        - Your total donations and amount donated
+        - Patients you've helped
+        - Recent donation history
+        - Monthly donation trends
+        - Impact summary
+        """,
+        tags=['Donor Management (Private)'],
+        responses={
+            200: openapi.Response(
+                description="Personal donor statistics",
+                examples={
+                    'application/json': {
+                        'total_donations': 15,
+                        'total_donated_amount': 5000.00,
+                        'average_donation': 333.33,
+                        'patients_helped': 8,
+                        'first_donation_date': '2025-01-15T10:30:00Z',
+                        'last_donation_date': '2025-12-05T14:20:00Z',
+                        'monthly_donations': [
+                            {'month': '2025-12', 'donations': 3, 'amount': 1200.00},
+                            {'month': '2025-11', 'donations': 5, 'amount': 1500.00}
+                        ],
+                        'patients_donated_to': [
+                            {
+                                'patient_name': 'John Doe',
+                                'patient_id': 1,
+                                'total_donated': 1500.00,
+                                'donation_count': 3,
+                                'last_donation_date': '2025-12-05T14:20:00Z'
+                            }
+                        ],
+                        'recent_donations': [
+                            {
+                                'id': 123,
+                                'patient_name': 'John Doe',
+                                'amount': 500.00,
+                                'date': '2025-12-05T14:20:00Z',
+                                'payment_method': 'Credit Card',
+                                'status': 'COMPLETED'
+                            }
+                        ]
+                    }
+                }
+            ),
+            401: 'Authentication required'
+        }
+    )
+    def get(self, request):
+        from django.db.models import Sum, Count, Min, Max
+        from django.db.models.functions import TruncMonth
+        
+        # Get donor's completed donations
+        my_donations = Donation.objects.filter(
+            donor=request.user,
+            status='COMPLETED'
+        )
+        
+        # Basic stats
+        total_donations = my_donations.count()
+        total_donated_amount = my_donations.aggregate(total=Sum('amount'))['total'] or 0
+        average_donation = (total_donated_amount / total_donations) if total_donations > 0 else 0
+        
+        # Patients helped
+        patients_helped = my_donations.values('patient').distinct().count()
+        
+        # Date range
+        date_range = my_donations.aggregate(
+            first=Min('created_at'),
+            last=Max('created_at')
+        )
+        
+        # Monthly donation trends (last 6 months)
+        from datetime import timedelta
+        six_months_ago = timezone.now() - timedelta(days=180)
+        
+        monthly_data = my_donations.filter(
+            created_at__gte=six_months_ago
+        ).annotate(
+            month=TruncMonth('created_at')
+        ).values('month').annotate(
+            donations=Count('id'),
+            amount=Sum('amount')
+        ).order_by('-month')[:6]
+        
+        monthly_donations = [
+            {
+                'month': item['month'].strftime('%Y-%m'),
+                'donations': item['donations'],
+                'amount': float(item['amount'] or 0)
+            }
+            for item in monthly_data
+        ]
+        
+        # Patients donated to (with breakdown)
+        patients_data = my_donations.values(
+            'patient__id',
+            'patient__full_name'
+        ).annotate(
+            total_donated=Sum('amount'),
+            donation_count=Count('id'),
+            last_donation=Max('created_at')
+        ).order_by('-total_donated')
+        
+        patients_donated_to = [
+            {
+                'patient_id': p['patient__id'],
+                'patient_name': p['patient__full_name'] or 'N/A',
+                'total_donated': float(p['total_donated']),
+                'donation_count': p['donation_count'],
+                'last_donation_date': p['last_donation'].isoformat()
+            }
+            for p in patients_data
+        ]
+        
+        # Recent donations (last 10)
+        recent = my_donations.select_related('patient').order_by('-created_at')[:10]
+        
+        recent_donations = [
+            {
+                'id': donation.id,
+                'patient_name': donation.patient.full_name if donation.patient else 'N/A',
+                'patient_id': donation.patient.id if donation.patient else None,
+                'amount': float(donation.amount),
+                'date': donation.created_at.isoformat(),
+                'payment_method': donation.payment_method,
+                'status': donation.status
+            }
+            for donation in recent
+        ]
+        
+        stats = {
+            'total_donations': total_donations,
+            'total_donated_amount': float(total_donated_amount),
+            'average_donation': float(average_donation),
+            'patients_helped': patients_helped,
+            'first_donation_date': date_range['first'].isoformat() if date_range['first'] else None,
+            'last_donation_date': date_range['last'].isoformat() if date_range['last'] else None,
+            'monthly_donations': monthly_donations,
+            'patients_donated_to': patients_donated_to,
+            'recent_donations': recent_donations
+        }
+        
+        return Response(stats)
+
+
 class PublicDonorProfileView(generics.RetrieveAPIView):
     """
     Public donor profile view (respects privacy settings).
@@ -692,88 +849,239 @@ class AdminDonorActivationView(APIView):
 
 class AdminDonorStatsView(APIView):
     """
-    Admin endpoint for donor statistics.
+    Admin endpoint for comprehensive donor statistics.
     """
     permission_classes = [IsAdminUser]
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Donor Statistics",
-        operation_description="**NEW ENDPOINT** - Get comprehensive donor statistics including total donors, verified donors, total donations, and top donors.",
+        operation_summary="🔴 [ADMIN] Comprehensive Donor Statistics",
+        operation_description="""
+        **ENHANCED** - Get comprehensive donor and donation statistics:
+        - Total patients receiving donations
+        - Donor counts and verification status
+        - Donation statistics (total, average, monthly trends)
+        - Payment method breakdown
+        - Donation type distribution
+        """,
         tags=['Admin - Donor Management'],
         responses={
             200: openapi.Response(
-                description="Donor statistics",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'total_donors': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'verified_donors': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'active_donors': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'private_profiles': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'total_donations': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'total_donated_amount': openapi.Schema(type=openapi.TYPE_NUMBER),
-                        'top_donors': openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(
-                                type=openapi.TYPE_OBJECT,
-                                properties={
-                                    'donor_name': openapi.Schema(type=openapi.TYPE_STRING),
-                                    'donor_email': openapi.Schema(type=openapi.TYPE_STRING),
-                                    'total_donated': openapi.Schema(type=openapi.TYPE_NUMBER),
-                                    'donation_count': openapi.Schema(type=openapi.TYPE_INTEGER)
-                                }
-                            )
-                        )
+                description="Comprehensive donor statistics",
+                examples={
+                    'application/json': {
+                        'patients': {
+                            'total_patients_with_donations': 45,
+                            'total_patients_funded': 12,
+                            'patients_receiving_donations_this_month': 8
+                        },
+                        'donors': {
+                            'total_donors': 150,
+                            'verified_donors': 120,
+                            'active_donors': 140,
+                            'private_profiles': 30
+                        },
+                        'donations': {
+                            'total_donations': 450,
+                            'total_donated_amount': 125000.50,
+                            'average_donation': 277.78,
+                            'anonymous_donations': 50,
+                            'authenticated_donations': 400
+                        },
+                        'monthly_trends': [
+                            {'month': '2025-11', 'donations': 45, 'amount': 12500.00, 'unique_donors': 35},
+                            {'month': '2025-10', 'donations': 38, 'amount': 10200.00, 'unique_donors': 28}
+                        ],
+                        'payment_methods': {
+                            'Credit Card': 300,
+                            'M-Pesa': 100,
+                            'Bank Transfer': 50
+                        },
+                        'donation_types': {
+                            'ONE_TIME': {'count': 400, 'total_amount': 100000.00},
+                            'RECURRING': {'count': 50, 'total_amount': 25000.50}
+                        }
                     }
-                )
+                }
             )
         }
     )
     def get(self, request):
-        from django.db.models import Count, Sum
+        from django.db.models import Count, Sum, Avg, Q
+        from django.db.models.functions import TruncMonth
+        from datetime import timedelta
+        from patient.models import PatientProfile
         
-        # Basic counts
+        completed_donations = Donation.objects.filter(status='COMPLETED')
+        
+        # ========== PATIENT STATISTICS ==========
+        # Total patients who have received at least one donation
+        total_patients_with_donations = completed_donations.values('patient').distinct().count()
+        
+        # Patients who reached their funding goal
+        patients_with_goals = PatientProfile.objects.filter(
+            id__in=completed_donations.values('patient')
+        ).exclude(funding_required__isnull=True)
+        
+        total_patients_funded = 0
+        for patient in patients_with_goals:
+            patient_donations = completed_donations.filter(patient=patient)
+            total_raised = patient_donations.aggregate(total=Sum('amount'))['total'] or 0
+            if total_raised >= patient.funding_required:
+                total_patients_funded += 1
+        
+        # Patients receiving donations this month
+        one_month_ago = timezone.now() - timedelta(days=30)
+        patients_this_month = completed_donations.filter(
+            created_at__gte=one_month_ago
+        ).values('patient').distinct().count()
+        
+        # ========== DONOR STATISTICS ==========
         total_donors = DonorProfile.objects.count()
         verified_donors = DonorProfile.objects.filter(user__is_verified=True).count()
         active_donors = DonorProfile.objects.filter(user__is_active=True).count()
         private_profiles = DonorProfile.objects.filter(is_profile_private=True).count()
         
-        # Donation stats
-        total_donations = Donation.objects.filter(status='COMPLETED', donor__isnull=False).count()
-        total_donated_amount = Donation.objects.filter(
-            status='COMPLETED'
-        ).aggregate(total=Sum('amount'))['total'] or 0
+        # ========== DONATION STATISTICS ==========
+        total_donations = completed_donations.count()
+        total_donated_amount = completed_donations.aggregate(total=Sum('amount'))['total'] or 0
+        average_donation = completed_donations.aggregate(avg=Avg('amount'))['avg'] or 0
+        anonymous_donations = completed_donations.filter(is_anonymous=True).count()
+        authenticated_donations = completed_donations.filter(donor__isnull=False).count()
         
-        # Top donors
-        top_donors_data = Donation.objects.filter(
-            status='COMPLETED',
-            donor__isnull=False
-        ).values(
-            'donor__id',
-            'donor__email',
-            'donor__donor_profile__full_name'
+        # ========== MONTHLY TRENDS (Last 6 months) ==========
+        six_months_ago = timezone.now() - timedelta(days=180)
+        monthly_data = []
+        
+        monthly_trends = completed_donations.filter(
+            created_at__gte=six_months_ago
         ).annotate(
-            total_donated=Sum('amount'),
-            donation_count=Count('id')
-        ).order_by('-total_donated')[:10]
+            month=TruncMonth('created_at')
+        ).values('month').annotate(
+            donations=Count('id'),
+            amount=Sum('amount'),
+            unique_donors=Count('donor', distinct=True)
+        ).order_by('-month')[:6]
         
-        top_donors = []
-        for donor in top_donors_data:
-            top_donors.append({
-                'donor_name': donor['donor__donor_profile__full_name'] or 'N/A',
-                'donor_email': donor['donor__email'],
-                'total_donated': float(donor['total_donated']),
-                'donation_count': donor['donation_count']
+        for item in monthly_trends:
+            monthly_data.append({
+                'month': item['month'].strftime('%Y-%m'),
+                'donations': item['donations'],
+                'amount': float(item['amount'] or 0),
+                'unique_donors': item['unique_donors']
             })
+        
+        # ========== PAYMENT METHOD BREAKDOWN ==========
+        payment_methods = completed_donations.values('payment_method').annotate(
+            count=Count('id'),
+            total_amount=Sum('amount')
+        ).order_by('-count')
+        
+        payment_breakdown = {
+            method['payment_method']: {
+                'count': method['count'],
+                'total_amount': float(method['total_amount'] or 0)
+            }
+            for method in payment_methods
+        }
+        
+        # ========== DONATION TYPE BREAKDOWN ==========
+        donation_types = completed_donations.values('donation_type').annotate(
+            count=Count('id'),
+            total_amount=Sum('amount')
+        )
+        
+        type_breakdown = {
+            dt['donation_type']: {
+                'count': dt['count'],
+                'total_amount': float(dt['total_amount'] or 0)
+            }
+            for dt in donation_types
+        }
+        
+        # ========== RESPONSE ==========
+        stats = {
+            'patients': {
+                'total_patients_with_donations': total_patients_with_donations,
+                'total_patients_funded': total_patients_funded,
+                'patients_receiving_donations_this_month': patients_this_month
+            },
+            'donors': {
+                'total_donors': total_donors,
+                'verified_donors': verified_donors,
+                'active_donors': active_donors,
+                'private_profiles': private_profiles
+            },
+            'donations': {
+                'total_donations': total_donations,
+                'total_donated_amount': float(total_donated_amount),
+                'average_donation': float(average_donation),
+                'anonymous_donations': anonymous_donations,
+                'authenticated_donations': authenticated_donations
+            },
+            'monthly_trends': monthly_data,
+            'payment_methods': payment_breakdown,
+            'donation_types': type_breakdown
+        }
+        
+        return Response(stats)
+
+
+class PublicDonorStatsView(APIView):
+    """
+    Public endpoint for general donor statistics (non-sensitive data only).
+    """
+    permission_classes = [AllowAny]
+    
+    @swagger_auto_schema(
+        operation_summary="🔴 Public Donor Statistics",
+        operation_description="""
+        **NEW ENDPOINT** - Get public donor statistics for homepage/dashboard display.
+        Returns non-sensitive aggregated data only.
+        """,
+        tags=['Public - Donor Statistics'],
+        responses={
+            200: openapi.Response(
+                description="Public donor statistics",
+                examples={
+                    'application/json': {
+                        'total_donors': 150,
+                        'total_donations': 450,
+                        'total_donated_amount': 125000.50,
+                        'patients_helped': 45,
+                        'recent_month_donations': 38,
+                        'recent_month_amount': 10200.00
+                    }
+                }
+            )
+        }
+    )
+    def get(self, request):
+        from django.db.models import Count, Sum
+        from datetime import timedelta
+        
+        # Basic public stats
+        total_donors = DonorProfile.objects.count()
+        
+        completed_donations = Donation.objects.filter(status='COMPLETED')
+        total_donations = completed_donations.count()
+        total_donated_amount = completed_donations.aggregate(total=Sum('amount'))['total'] or 0
+        
+        # Unique patients helped
+        patients_helped = completed_donations.values('patient').distinct().count()
+        
+        # Recent month statistics
+        one_month_ago = timezone.now() - timedelta(days=30)
+        recent_donations = completed_donations.filter(created_at__gte=one_month_ago)
+        recent_month_donations = recent_donations.count()
+        recent_month_amount = recent_donations.aggregate(total=Sum('amount'))['total'] or 0
         
         stats = {
             'total_donors': total_donors,
-            'verified_donors': verified_donors,
-            'active_donors': active_donors,
-            'private_profiles': private_profiles,
             'total_donations': total_donations,
             'total_donated_amount': float(total_donated_amount),
-            'top_donors': top_donors
+            'patients_helped': patients_helped,
+            'recent_month_donations': recent_month_donations,
+            'recent_month_amount': float(recent_month_amount)
         }
         
         return Response(stats)

@@ -3,10 +3,11 @@ Management command to seed donors and donations for testing
 """
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from donor.models import DonorProfile, Donation
 from patient.models import PatientProfile
 from decimal import Decimal
-from datetime import datetime, timedelta
+from datetime import timedelta
 import random
 
 User = get_user_model()
@@ -194,9 +195,9 @@ class Command(BaseCommand):
                     donor_name = donor.donor_profile.full_name if hasattr(donor, 'donor_profile') else donor.email
                     self.stdout.write(f"  ✓ Donation: ${amount} from {donor_name} to {patient.full_name}")
                 
-                # Set random creation date (last 30 days)
+                # Set random creation date (last 30 days) - timezone aware
                 days_ago = random.randint(0, 30)
-                donation.created_at = datetime.now() - timedelta(days=days_ago)
+                donation.created_at = timezone.now() - timedelta(days=days_ago)
                 donation.save()
                 
                 created_donations += 1
