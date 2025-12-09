@@ -34,24 +34,44 @@ class AnonymousOneTimePatientDonationView(APIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        tags=['🔴 Donations - One-Time Patient'],
-        operation_summary="🔓 Anonymous One-Time Patient Donation",
-        operation_description="Make a one-time donation to a specific patient without login.",
+        tags=['🔴 ⚠️ Donations - One-Time Patient - '],
+        operation_summary="🔴 🔓 Anonymous One-Time Patient Donation",
+        operation_description="""
+        Make a one-time donation to a specific patient without login.
+        
+        ⚠️ **NOTE FOR FRONTEND:**
+        **PRIORITY: Implement this API first!** This is the main donation flow.
+        Other donation APIs (Monthly Recurring, Organization) can be implemented later.
+        
+        **Discover Patients:**
+        Use the Patient Discovery API to find patients who need funding:
+        ```
+        GET {{base_url}}/api/v1.0/auth/patients/discover/?page=1
+        ```
+        
+        **Payment Providers:**
+        - **Mobile Money:** `mpesa`, `airtel`, `tigo`, `halopesa`, `azampesa`
+        - **Bank:** `crdb`, `nmb`
+        
+        **Required Fields:**
+        - For Mobile Money: `phone_number`
+        - For Bank: `merchant_account_number`, `merchant_mobile_number`, `otp`
+        """,
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=['patient_id', 'amount', 'anonymous_name', 'anonymous_email', 'payment_method', 'provider'],
             properties={
-                'patient_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='Patient ID (required)'),
+                'patient_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='Patient ID (get from {{base_url}}/api/v1.0/auth/patients/discover/?page=4)'),
                 'amount': openapi.Schema(type=openapi.TYPE_NUMBER, example=50.00),
                 'anonymous_name': openapi.Schema(type=openapi.TYPE_STRING, example='John Doe'),
                 'anonymous_email': openapi.Schema(type=openapi.TYPE_STRING, example='john@example.com'),
                 'message': openapi.Schema(type=openapi.TYPE_STRING, example='Get well soon!'),
                 'payment_method': openapi.Schema(type=openapi.TYPE_STRING, enum=['MOBILE_MONEY', 'BANK']),
-                'provider': openapi.Schema(type=openapi.TYPE_STRING, description='mpesa, airtel, tigo, halopesa, azampesa, crdb, nmb'),
-                'phone_number': openapi.Schema(type=openapi.TYPE_STRING, example='0789123456'),
-                'merchant_account_number': openapi.Schema(type=openapi.TYPE_STRING),
-                'merchant_mobile_number': openapi.Schema(type=openapi.TYPE_STRING),
-                'otp': openapi.Schema(type=openapi.TYPE_STRING),
+                'provider': openapi.Schema(type=openapi.TYPE_STRING, description='Mobile: mpesa, airtel, tigo, halopesa, azampesa | Bank: crdb, nmb'),
+                'phone_number': openapi.Schema(type=openapi.TYPE_STRING, example='0789123456', description='Required for Mobile Money'),
+                'merchant_account_number': openapi.Schema(type=openapi.TYPE_STRING, description='Required for Bank payments'),
+                'merchant_mobile_number': openapi.Schema(type=openapi.TYPE_STRING, description='Required for Bank payments'),
+                'otp': openapi.Schema(type=openapi.TYPE_STRING, description='Required for Bank payments'),
             }
         ),
         responses={200: 'Payment initiated', 400: 'Validation error', 404: 'Patient not found'}
@@ -249,8 +269,8 @@ class AuthenticatedOneTimePatientDonationView(AnonymousOneTimePatientDonationVie
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        tags=['🔴 Donations - One-Time Patient'],
-        operation_summary="🔐 Authenticated One-Time Patient Donation",
+        tags=['🔴 ⚠️ Donations - One-Time Patient'],
+        operation_summary="🔴 🔐 Authenticated One-Time Patient Donation",
         operation_description="Make a one-time donation to a specific patient with your account.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -282,7 +302,7 @@ class AnonymousMonthlyPatientDonationView(AnonymousOneTimePatientDonationView):
     
     @swagger_auto_schema(
         tags=['🔴 Donations - Monthly Recurring'],
-        operation_summary="🔓 Anonymous Monthly Patient Donation",
+        operation_summary="🔴 🔓 Anonymous Monthly Patient Donation",
         operation_description="Set up monthly recurring donation to a patient without login.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -310,7 +330,7 @@ class AuthenticatedMonthlyPatientDonationView(AnonymousOneTimePatientDonationVie
     
     @swagger_auto_schema(
         tags=['🔴 Donations - Monthly Recurring'],
-        operation_summary="🔐 Authenticated Monthly Patient Donation",
+        operation_summary="🔴 🔐 Authenticated Monthly Patient Donation",
         operation_description="Set up monthly recurring donation to a patient with your account.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -339,7 +359,7 @@ class AnonymousOrganizationDonationView(AnonymousOneTimePatientDonationView):
     
     @swagger_auto_schema(
         tags=['🔴 Donations - Organization'],
-        operation_summary="🔓 Anonymous Organization Donation",
+        operation_summary="🔴 🔓 Anonymous Organization Donation",
         operation_description="Make a one-time donation to the organization without login.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -366,7 +386,7 @@ class AuthenticatedOrganizationDonationView(AnonymousOneTimePatientDonationView)
     
     @swagger_auto_schema(
         tags=['🔴 Donations - Organization'],
-        operation_summary="🔐 Authenticated Organization Donation",
+        operation_summary="🔴 🔐 Authenticated Organization Donation",
         operation_description="Make a one-time donation to the organization with your account.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -390,7 +410,7 @@ class AnonymousMonthlyOrganizationDonationView(AnonymousOneTimePatientDonationVi
     
     @swagger_auto_schema(
         tags=['🔴 Donations - Organization'],
-        operation_summary="🔓 Anonymous Monthly Organization Donation",
+        operation_summary="🔴 🔓 Anonymous Monthly Organization Donation",
         operation_description="Set up monthly recurring donation to the organization without login.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
@@ -417,7 +437,7 @@ class AuthenticatedMonthlyOrganizationDonationView(AnonymousOneTimePatientDonati
     
     @swagger_auto_schema(
         tags=['🔴 Donations - Organization'],
-        operation_summary="🔐 Authenticated Monthly Organization Donation",
+        operation_summary="🔴 🔐 Authenticated Monthly Organization Donation",
         operation_description="Set up monthly recurring donation to the organization with your account.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,

@@ -292,7 +292,7 @@ class AdminExpenseTypeListCreateView(generics.ListCreateAPIView):
     queryset = ExpenseTypeLookup.objects.all().order_by('display_order', 'name')
     
     @swagger_auto_schema(
-        operation_summary="🔴 List All Expense Types (Admin)",
+        operation_summary="List All Expense Types (Admin)",
         operation_description="""
         Admin endpoint to retrieve all expense types including inactive ones.
         Returns expense types ordered by display_order and name.
@@ -306,7 +306,7 @@ class AdminExpenseTypeListCreateView(generics.ListCreateAPIView):
         return super().get(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        operation_summary="🔴 Create New Expense Type (Admin)",
+        operation_summary="Create New Expense Type (Admin)",
         operation_description="""
         Admin endpoint to create a new expense type for treatment cost breakdowns.
         
@@ -350,7 +350,7 @@ class AdminExpenseTypeDetailView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field = 'id'
     
     @swagger_auto_schema(
-        operation_summary="🔴 Get Expense Type Details (Admin)",
+        operation_summary="Get Expense Type Details (Admin)",
         operation_description="Admin endpoint to retrieve details of a specific expense type by ID.",
         tags=['Admin - Expense Type Management'],
         responses={
@@ -362,7 +362,7 @@ class AdminExpenseTypeDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().get(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        operation_summary="🔴 Update Expense Type (Admin)",
+        operation_summary="Update Expense Type (Admin)",
         operation_description="""
         Admin endpoint to update an expense type. 
         Use PUT for full update or PATCH for partial update.
@@ -390,7 +390,7 @@ class AdminExpenseTypeDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().put(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        operation_summary="🔴 Partially Update Expense Type (Admin)",
+        operation_summary="Partially Update Expense Type (Admin)",
         operation_description="Admin endpoint to partially update an expense type (only provided fields will be updated).",
         tags=['Admin - Expense Type Management'],
         responses={
@@ -403,7 +403,7 @@ class AdminExpenseTypeDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().patch(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        operation_summary="🔴 Delete Expense Type (Admin)",
+        operation_summary="Delete Expense Type (Admin)",
         operation_description="""
         Admin endpoint to delete an expense type.
         

@@ -959,7 +959,7 @@ class AdminPatientFeaturedToggleView(APIView):
     permission_classes = [IsAdminUser]
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Toggle Patient Featured Status",
+        operation_summary="[ADMIN] Toggle Patient Featured Status",
         operation_description="**NEW ENDPOINT** - Set or unset a patient as featured for homepage display. Only published patients should be featured. Maximum 10 patients can be featured at once.",
         tags=['Admin - Patient Review & Management'],
         request_body=openapi.Schema(
@@ -1105,7 +1105,7 @@ class PublicPatientDonorsListView(generics.ListAPIView):
     permission_classes = []  # Public access
     
     @swagger_auto_schema(
-        operation_summary="🔴 List Patient Donors",
+        operation_summary="List Patient Donors",
         operation_description="**NEW ENDPOINT** - Get list of all donors who donated to a specific patient. Respects donor anonymity settings and privacy preferences. Anonymous donors show as 'Anonymous Donor' without profile information.",
         tags=['Public - Patient Profiles'],
         responses={
@@ -1201,7 +1201,7 @@ class AdminCostBreakdownListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminUser]
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] List Patient Cost Breakdowns",
+        operation_summary="[ADMIN] List Patient Cost Breakdowns",
         operation_description="**NEW ENDPOINT** - List all cost breakdown items for a specific patient. Shows expense types, amounts, and notes.",
         tags=['Admin - Patient Review & Management'],
         responses={
@@ -1229,7 +1229,7 @@ class AdminCostBreakdownListCreateView(generics.ListCreateAPIView):
         return super().get(request)
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Create Cost Breakdown Item",
+        operation_summary="[ADMIN] Create Cost Breakdown Item",
         operation_description="**NEW ENDPOINT** - Add a new cost breakdown item to a patient's treatment costs. Total cost is automatically calculated.",
         tags=['Admin - Patient Review & Management'],
         request_body=openapi.Schema(
@@ -1302,7 +1302,7 @@ class AdminCostBreakdownDetailView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field = 'id'
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Get Cost Breakdown Details",
+        operation_summary="[ADMIN] Get Cost Breakdown Details",
         operation_description="**NEW ENDPOINT** - Retrieve details of a specific cost breakdown item.",
         tags=['Admin - Patient Review & Management'],
         responses={
@@ -1314,7 +1314,7 @@ class AdminCostBreakdownDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().get(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Update Cost Breakdown",
+        operation_summary="[ADMIN] Update Cost Breakdown",
         operation_description="**NEW ENDPOINT** - Update a cost breakdown item. Total treatment cost is automatically recalculated.",
         tags=['Admin - Patient Review & Management'],
         responses={
@@ -1327,7 +1327,7 @@ class AdminCostBreakdownDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().put(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Partial Update Cost Breakdown",
+        operation_summary="[ADMIN] Partial Update Cost Breakdown",
         operation_description="**NEW ENDPOINT** - Partially update a cost breakdown item. Only provided fields will be updated.",
         tags=['Admin - Patient Review & Management'],
         responses={
@@ -1340,7 +1340,7 @@ class AdminCostBreakdownDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().patch(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Delete Cost Breakdown",
+        operation_summary="[ADMIN] Delete Cost Breakdown",
         operation_description="**NEW ENDPOINT** - Delete a cost breakdown item. Total treatment cost is automatically recalculated.",
         tags=['Admin - Patient Review & Management'],
         responses={
@@ -1366,7 +1366,7 @@ class AdminBulkCostBreakdownCreateView(APIView):
     permission_classes = [IsAdminUser]
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Bulk Create Cost Breakdowns",
+        operation_summary="[ADMIN] Bulk Create Cost Breakdowns",
         operation_description="**NEW ENDPOINT** - Create multiple cost breakdown items in a single request. Useful for setting up complete treatment cost structure.",
         tags=['Admin - Patient Review & Management'],
         request_body=openapi.Schema(

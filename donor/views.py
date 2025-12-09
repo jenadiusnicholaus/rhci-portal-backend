@@ -144,7 +144,7 @@ class MyDonorStatsView(APIView):
     permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
-        operation_summary="🔴 My Donor Statistics",
+        operation_summary="My Donor Statistics",
         operation_description="""
         **NEW ENDPOINT** - Get your personal donation statistics as a donor.
         
@@ -677,7 +677,7 @@ class AdminDonorListView(generics.ListAPIView):
     permission_classes = [IsAdminUser]
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] List All Donors",
+        operation_summary="[ADMIN] List All Donors",
         operation_description="**NEW ENDPOINT** - List all donor accounts with profile information. Supports search by name, email, or workplace. Filter by privacy status and verification status.",
         tags=['Admin - Donor Management'],
         manual_parameters=[
@@ -730,7 +730,7 @@ class AdminDonorDetailView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field = 'id'
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Get Donor Details",
+        operation_summary="[ADMIN] Get Donor Details",
         operation_description="**NEW ENDPOINT** - Retrieve complete donor profile information including donation history and statistics.",
         tags=['Admin - Donor Management'],
         responses={
@@ -742,7 +742,7 @@ class AdminDonorDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().get(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Update Donor Profile",
+        operation_summary="[ADMIN] Update Donor Profile",
         operation_description="**NEW ENDPOINT** - Update donor profile information. Can modify all profile fields.",
         tags=['Admin - Donor Management'],
         responses={
@@ -755,7 +755,7 @@ class AdminDonorDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().put(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Partial Update Donor",
+        operation_summary="[ADMIN] Partial Update Donor",
         operation_description="**NEW ENDPOINT** - Partially update donor profile. Only provided fields will be updated.",
         tags=['Admin - Donor Management'],
         responses={
@@ -768,7 +768,7 @@ class AdminDonorDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().patch(request, *args, **kwargs)
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Delete Donor Account",
+        operation_summary="[ADMIN] Delete Donor Account",
         operation_description="**NEW ENDPOINT** - Permanently delete a donor account and associated profile. This action cannot be undone.",
         tags=['Admin - Donor Management'],
         responses={
@@ -790,7 +790,7 @@ class AdminDonorActivationView(APIView):
     permission_classes = [IsAdminUser]
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Activate/Deactivate Donor",
+        operation_summary="[ADMIN] Activate/Deactivate Donor",
         operation_description="**NEW ENDPOINT** - Activate or deactivate a donor account. Deactivated donors cannot login or make donations.",
         tags=['Admin - Donor Management'],
         request_body=openapi.Schema(
@@ -854,7 +854,7 @@ class AdminDonorStatsView(APIView):
     permission_classes = [IsAdminUser]
     
     @swagger_auto_schema(
-        operation_summary="🔴 [ADMIN] Comprehensive Donor Statistics",
+        operation_summary="[ADMIN] Comprehensive Donor Statistics",
         operation_description="""
         **ENHANCED** - Get comprehensive donor and donation statistics:
         - Total patients receiving donations
@@ -1033,7 +1033,7 @@ class PublicDonorStatsView(APIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        operation_summary="🔴 Public Donor Statistics",
+        operation_summary="Public Donor Statistics",
         operation_description="""
         **NEW ENDPOINT** - Get public donor statistics for homepage/dashboard display.
         Returns non-sensitive aggregated data only.

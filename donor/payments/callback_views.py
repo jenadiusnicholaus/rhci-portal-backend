@@ -24,7 +24,7 @@ class AzamPayCallbackView(APIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        tags=['🔴 Donations - AzamPay'],
+        tags=['Donations - AzamPay'],
         operation_summary="Azam Pay Webhook Callback",
         operation_description="""
         Webhook endpoint for Azam Pay payment notifications.
@@ -182,7 +182,7 @@ class CheckPaymentStatusView(APIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        tags=['🔴 Donations - AzamPay'],
+        tags=['Donations - AzamPay'],
         operation_summary="Check Payment Status",
         operation_description="""
         Check the current payment status of a donation.
@@ -306,7 +306,7 @@ class ManualPaymentUpdateView(APIView):
     permission_classes = [AllowAny]  # TODO: Change to IsAdminUser in production
     
     @swagger_auto_schema(
-        tags=['🔴 Donations - AzamPay'],
+        tags=['Donations - AzamPay'],
         operation_summary="Manual Payment Status Update (Sandbox Only)",
         operation_description="""
         Manually update donation payment status - useful for sandbox testing.

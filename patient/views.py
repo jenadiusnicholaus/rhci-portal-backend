@@ -154,8 +154,8 @@ class RandomizedPatientListView(APIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
-        tags=['Patient Discovery'],
-        operation_summary="Get Randomized Patient (AI-Powered Discovery)",
+        tags=['🔴 Patient Discovery'],
+        operation_summary="🔴 Get Randomized Patient (AI-Powered Discovery)",
         operation_description="""
         Discover patients in randomized order for engaging user experience.
         
