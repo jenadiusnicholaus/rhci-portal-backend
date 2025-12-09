@@ -4,7 +4,7 @@ from .views import (
     AdminExpenseTypeListCreateView, AdminExpenseTypeDetailView
 )
 from donor.views import DonorRegisterView, DonorProfileView
-from patient.views import PatientRegisterView, PatientProfileView
+from patient.views import PatientRegisterView, PatientProfileView, RandomizedPatientListView
 
 urlpatterns = [
     # ============ AUTHENTICATION ============
@@ -24,6 +24,10 @@ urlpatterns = [
     # ============ PATIENT PROFILE (AUTHENTICATED) ============
     # Patient's own profile management
     path('patient/profile/', PatientProfileView.as_view(), name='patient_profile'),
+    
+    # ============ PUBLIC PATIENT DISCOVERY ============
+    # AI-powered randomized patient discovery (no auth required)
+    path('patients/discover/', RandomizedPatientListView.as_view(), name='randomized_patient_list'),
     
     # ============ LOOKUPS ============
     path('lookups/countries/', CountryLookupListView.as_view(), name='country_lookup'),

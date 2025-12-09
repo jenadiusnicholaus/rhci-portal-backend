@@ -147,6 +147,18 @@ class PatientProfileSerializer(serializers.ModelSerializer):
             return obj.photo.url
         return None
     
+    def to_representation(self, instance):
+        """Override to ensure photo field also uses absolute URL"""
+        representation = super().to_representation(instance)
+        
+        # Convert photo field to absolute URL if it exists
+        if representation.get('photo'):
+            request = self.context.get('request')
+            if request:
+                representation['photo'] = request.build_absolute_uri(instance.photo.url)
+        
+        return representation
+    
     class Meta:
         model = PatientProfile
         fields = [
