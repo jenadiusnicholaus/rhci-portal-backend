@@ -16,11 +16,23 @@ from .views import (
     AdminDonorStatsView,
     PublicDonorStatsView,
 )
-from .payment_views import (
-    AzamPayMobileMoneyCheckoutView,
-    AzamPayBankCheckoutView,
+from .payments.donation_type_views import (
+    # One-time patient donations
+    AnonymousOneTimePatientDonationView,
+    AuthenticatedOneTimePatientDonationView,
+    # Monthly patient donations
+    AnonymousMonthlyPatientDonationView,
+    AuthenticatedMonthlyPatientDonationView,
+    # Organization donations
+    AnonymousOrganizationDonationView,
+    AuthenticatedOrganizationDonationView,
+    AnonymousMonthlyOrganizationDonationView,
+    AuthenticatedMonthlyOrganizationDonationView,
+)
+from .payments.callback_views import (
     AzamPayCallbackView,
     CheckPaymentStatusView,
+    ManualPaymentUpdateView,
 )
 
 app_name = 'donor'
@@ -33,8 +45,24 @@ urlpatterns = [
     path('public/stats/', PublicDonorStatsView.as_view(), name='public_donor_stats'),
     
     # ============ DONATION ENDPOINTS ============
-    # Public - Create donation (anonymous or authenticated)
-    path('donations/create/', DonationCreateView.as_view(), name='donation_create'),
+    # 🔴 ONE-TIME PATIENT DONATIONS
+    path('donate/azampay/patient/anonymous/', AnonymousOneTimePatientDonationView.as_view(), name='donate_patient_onetime_anonymous'),
+    path('donate/azampay/patient/', AuthenticatedOneTimePatientDonationView.as_view(), name='donate_patient_onetime_authenticated'),
+    
+    # 🔴 MONTHLY RECURRING PATIENT DONATIONS
+    path('donate/azampay/patient/monthly/anonymous/', AnonymousMonthlyPatientDonationView.as_view(), name='donate_patient_monthly_anonymous'),
+    path('donate/azampay/patient/monthly/', AuthenticatedMonthlyPatientDonationView.as_view(), name='donate_patient_monthly_authenticated'),
+    
+    # 🔴 ORGANIZATION DONATIONS (One-time)
+    path('donate/azampay/organization/anonymous/', AnonymousOrganizationDonationView.as_view(), name='donate_organization_anonymous'),
+    path('donate/azampay/organization/', AuthenticatedOrganizationDonationView.as_view(), name='donate_organization_authenticated'),
+    
+    # 🔴 ORGANIZATION DONATIONS (Monthly)
+    path('donate/azampay/organization/monthly/anonymous/', AnonymousMonthlyOrganizationDonationView.as_view(), name='donate_organization_monthly_anonymous'),
+    path('donate/azampay/organization/monthly/', AuthenticatedMonthlyOrganizationDonationView.as_view(), name='donate_organization_monthly_authenticated'),
+    
+    # Future: path('donate/paypal/...', PayPalDonationView.as_view()),
+    # Future: path('donate/stripe/...', StripeDonationView.as_view()),
     
     # Public - View patient donations
     path('donations/patient/<int:patient_id>/', PatientDonationsView.as_view(), name='patient_donations'),
@@ -56,15 +84,12 @@ urlpatterns = [
     path('admin/donors/stats/', AdminDonorStatsView.as_view(), name='admin_donor_stats'),
     
     # ============ PAYMENT ENDPOINTS (AZAM PAY) ============
-    # Mobile money payment
-    path('payment/azampay/mobile-money/', AzamPayMobileMoneyCheckoutView.as_view(), name='azampay_mobile_checkout'),
-    
-    # Bank payment
-    path('payment/azampay/bank/', AzamPayBankCheckoutView.as_view(), name='azampay_bank_checkout'),
-    
-    # Webhook callback (called by Azam Pay)
+    # Webhook callback (called by Azam Pay when payment completes)
     path('payment/azampay/callback/', AzamPayCallbackView.as_view(), name='azampay_callback'),
     
-    # Check payment status
+    # Check payment status by transaction ID
     path('payment/status/', CheckPaymentStatusView.as_view(), name='payment_status'),
+    
+    # Manual status update (sandbox testing only - disable in production)
+    path('payment/manual-update/', ManualPaymentUpdateView.as_view(), name='manual_payment_update'),
 ]
