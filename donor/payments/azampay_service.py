@@ -110,6 +110,17 @@ class AzamPayService:
                 timeout=self.timeout  # None for sandbox, (connect, read) for production
             )
             
+            # Check response content type
+            content_type = response.headers.get('Content-Type', '').lower()
+            logger.info(f"Auth Response Status: {response.status_code}, Content-Type: {content_type}")
+            
+            if 'html' in content_type:
+                logger.error(f"⚠️ RECEIVED HTML RESPONSE FROM AUTH ENDPOINT")
+                logger.error(f"⚠️ AzamPay auth server returned error page instead of JSON")
+                logger.error(f"⚠️ Your IP might be blocked or firewall is blocking the request")
+                logger.error(f"⚠️ Full Response:\n{response.text[:2000]}")
+                raise AzamPayError(f"AzamPay authentication server returned HTML error page (status {response.status_code})")
+            
             response_data = response.json()
             
             if response.status_code == 200 and response_data.get("success"):
@@ -207,27 +218,61 @@ class AzamPayService:
             logger.info(f"Phone: {normalized_phone}")
             logger.debug(f"Request Payload: {payload}")
             
-            response = requests.post(
-                url, 
-                json=payload, 
-                headers=headers, 
-                timeout=self.timeout  # None for sandbox, (connect, read) for production
-            )
+            logger.info(f"📤 Sending POST request to: {url}")
+            logger.info(f"📤 Timeout setting: {self.timeout}")
             
-            # Log response for debugging
-            logger.info(f"📥 AzamPay Response Status: {response.status_code}")
-            logger.info(f"📥 AzamPay Response Body: {response.text[:1000]}")  # Log more content
+            try:
+                response = requests.post(
+                    url, 
+                    json=payload, 
+                    headers=headers, 
+                    timeout=self.timeout  # None for sandbox, (connect, read) for production
+                )
+                
+                # Log response for debugging
+                logger.info(f"📥 AzamPay Response Status: {response.status_code}")
+                logger.info(f"📥 Response Content-Type: {response.headers.get('Content-Type', 'Not specified')}")
+                logger.info(f"📥 Response Source: {response.url}")
+                
+                # Check if response is HTML (error page) or JSON (API response)
+                content_type = response.headers.get('Content-Type', '').lower()
+                if 'html' in content_type:
+                    logger.error(f"⚠️ RECEIVED HTML RESPONSE (Not JSON API Response!)")
+                    logger.error(f"⚠️ This indicates AzamPay server returned an error page")
+                    logger.error(f"⚠️ Possible causes: IP blocking, firewall, server error, wrong URL")
+                    logger.error(f"⚠️ Full HTML Response:\n{response.text[:2000]}")
+                elif 'json' in content_type:
+                    logger.info(f"✅ Received JSON response (correct API format)")
+                else:
+                    logger.warning(f"⚠️ Unexpected content type: {content_type}")
+                
+                logger.info(f"📥 AzamPay Response Body: {response.text[:1000]}")  # Log more content
+            except requests.exceptions.Timeout as e:
+                logger.error(f"❌ Request timed out: {str(e)}")
+                raise
+            except requests.exceptions.ConnectionError as e:
+                logger.error(f"❌ Connection error: {str(e)}")
+                raise
+            except requests.exceptions.RequestException as e:
+                logger.error(f"❌ Request failed: {str(e)}")
+                raise
+            except Exception as e:
+                logger.error(f"❌ Unexpected error during request: {type(e).__name__}: {str(e)}")
+                raise
             
             # Handle empty or non-JSON responses
+            logger.info(f"📊 Parsing response... Length: {len(response.text)} chars")
+            
             if not response.text.strip():
-                logger.error("Empty response from AzamPay checkout")
+                logger.error("❌ Empty response from AzamPay checkout")
                 raise AzamPayError("Empty response from payment service")
             
             try:
                 data = response.json()
+                logger.info(f"✅ Successfully parsed JSON response")
             except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON from AzamPay: {e}")
-                logger.error(f"Response content: {response.text}")
+                logger.error(f"❌ Invalid JSON from AzamPay: {e}")
+                logger.error(f"❌ Response content: {response.text}")
                 raise AzamPayError("Invalid response from payment service")
             
             # Check if request was successful
@@ -253,16 +298,18 @@ class AzamPayService:
                 logger.error(f"❌ Full error data: {data}")
                 return False, {'error': error_msg, 'data': data}
                 
-        except AzamPayError:
+        except AzamPayError as e:
+            logger.error(f"❌ AzamPay Error: {str(e)}")
             raise
-        except requests.exceptions.Timeout:
-            logger.error("AzamPay checkout request timed out")
+        except requests.exceptions.Timeout as e:
+            logger.error(f"❌ AzamPay checkout request timed out: {str(e)}")
             return False, {'error': 'Payment request timed out. Please try again.'}
         except requests.RequestException as e:
-            logger.error(f"AzamPay checkout request failed: {str(e)}")
+            logger.error(f"❌ AzamPay checkout request failed: {type(e).__name__}: {str(e)}")
             return False, {'error': f'Payment request failed: {str(e)}'}
         except Exception as e:
-            logger.error(f"Unexpected error in checkout: {str(e)}")
+            logger.error(f"❌ Unexpected error in checkout: {type(e).__name__}: {str(e)}")
+            logger.exception("Full traceback:")  # This logs the full stack trace
             return False, {'error': f'Unexpected error: {str(e)}'}
     
     def initiate_bank_checkout(
