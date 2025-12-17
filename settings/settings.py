@@ -60,6 +60,9 @@ AUTH_USER_MODEL = 'auth_app.CustomUser'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # CORS middleware (must be at the top)
+    'settings.middleware.RequestLoggingMiddleware',  # Log all requests
+    'settings.middleware.CORSDebugMiddleware',  # Debug CORS issues
+    'settings.middleware.ErrorLoggingMiddleware',  # Log all errors
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static/media files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -265,21 +268,26 @@ SWAGGER_SETTINGS = {
 # CORS CONFIGURATION
 # ============================================================================
 
-# CORS settings for cross-origin requests (frontend to backend)
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # React default
-    "http://localhost:5173",  # Vite default
-    "http://localhost:5174",  # Vite alternative
-    "http://localhost:5175",  # Vite alternative (your frontend)
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",
-    "http://127.0.0.1:5175",
-    "http://185.237.253.223:8082",  # Production backend
-    "https://185.237.253.223:8082",  # Production backend (HTTPS)
-]
+# Get allowed origins from environment variable or use defaults
+_cors_origins_env = config('CORS_ALLOWED_ORIGINS', default='')
+if _cors_origins_env:
+    # Parse comma-separated origins from .env
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_origins_env.split(',') if origin.strip()]
+else:
+    # Fallback to default development origins
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+    ]
 
-# Allow all origins in development (be more restrictive in production)
+# Development: Allow all origins for easier testing
+# Production: Only allow specific origins from CORS_ALLOWED_ORIGINS
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 # Allow credentials (cookies, authorization headers)
@@ -307,6 +315,21 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+
+# CORS preflight cache time (in seconds)
+CORS_PREFLIGHT_MAX_AGE = 86400
+
+# Additional CORS settings for production security
+if not DEBUG:
+    # In production, be more restrictive
+    CORS_ALLOW_ALL_ORIGINS = False
+    # Log warning if no origins configured
+    if not CORS_ALLOWED_ORIGINS:
+        import warnings
+        warnings.warn(
+            "CORS_ALLOWED_ORIGINS is empty in production! "
+            "Set CORS_ALLOWED_ORIGINS in .env to allow frontend access."
+        )
 
 # ============================================================================
 # AZAM PAY PAYMENT GATEWAY CONFIGURATION
