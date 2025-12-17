@@ -204,7 +204,8 @@ class AzamPayService:
                 payload['additionalProperties'] = additional_properties
             
             logger.info(f"Initiating AzamPay checkout: {external_id} - {amount} {currency} via {azam_provider}")
-            logger.debug(f"Phone: {normalized_phone}, Payload: {payload}")
+            logger.info(f"Phone: {normalized_phone}")
+            logger.debug(f"Request Payload: {payload}")
             
             response = requests.post(
                 url, 
@@ -214,8 +215,8 @@ class AzamPayService:
             )
             
             # Log response for debugging
-            logger.info(f"AzamPay response status: {response.status_code}")
-            logger.debug(f"AzamPay response: {response.text[:500]}")
+            logger.info(f"📥 AzamPay Response Status: {response.status_code}")
+            logger.info(f"📥 AzamPay Response Body: {response.text[:1000]}")  # Log more content
             
             # Handle empty or non-JSON responses
             if not response.text.strip():
@@ -231,7 +232,9 @@ class AzamPayService:
             
             # Check if request was successful
             if response.status_code == 200 and data.get('success', False):
-                logger.info(f"Successfully initiated checkout: {external_id}")
+                logger.info(f"✅ Successfully initiated checkout: {external_id}")
+                logger.info(f"✅ Transaction ID: {data.get('transactionId', 'N/A')}")
+                logger.info(f"✅ Message: {data.get('message', 'No message')}")
                 return True, data
             else:
                 # Handle validation errors
@@ -246,7 +249,8 @@ class AzamPayService:
                     if error_details:
                         error_msg += f": {'; '.join(error_details)}"
                 
-                logger.error(f"AzamPay checkout failed: {error_msg}")
+                logger.error(f"❌ AzamPay checkout failed: {error_msg}")
+                logger.error(f"❌ Full error data: {data}")
                 return False, {'error': error_msg, 'data': data}
                 
         except AzamPayError:
@@ -327,6 +331,8 @@ class AzamPayService:
                 payload['additionalProperties'] = additional_properties
             
             logger.info(f"Initiating AzamPay bank checkout: {external_id} with {provider_name}")
+            logger.debug(f"Bank Request Payload: {payload}")
+            
             response = requests.post(
                 url, 
                 json=payload, 
@@ -334,18 +340,22 @@ class AzamPayService:
                 timeout=self.timeout  # None for sandbox, (connect, read) for production
             )
             
+            logger.info(f"📥 Bank Response Status: {response.status_code}")
+            logger.info(f"📥 Bank Response Body: {response.text[:1000]}")
+            
             if not response.text.strip():
-                logger.error("Empty response from bank checkout")
+                logger.error("❌ Empty response from bank checkout")
                 return False, {'error': 'Empty response from payment gateway'}
             
             try:
                 data = response.json()
             except json.JSONDecodeError:
-                logger.error(f"Invalid JSON in bank checkout response: {response.text}")
+                logger.error(f"❌ Invalid JSON in bank checkout response: {response.text}")
                 return False, {'error': 'Invalid response from payment gateway'}
             
             if response.status_code == 200 and data.get('success', False):
-                logger.info(f"Bank checkout successful: {external_id}")
+                logger.info(f"✅ Bank checkout successful: {external_id}")
+                logger.info(f"✅ Transaction ID: {data.get('transactionId', 'N/A')}")
                 return True, data
             else:
                 error_msg = data.get('message', 'Bank checkout failed')
@@ -363,16 +373,17 @@ class AzamPayService:
                     if error_details:
                         error_msg += f": {'; '.join(error_details)}"
                 
-                logger.error(f"AzamPay bank checkout failed: {error_msg}")
+                logger.error(f"❌ AzamPay bank checkout failed: {error_msg}")
+                logger.error(f"❌ Full error data: {data}")
                 return False, {'error': error_msg, 'data': data}
                 
         except AzamPayError:
             raise
         except requests.exceptions.Timeout:
-            logger.error("AzamPay bank checkout request timed out")
+            logger.error("❌ AzamPay bank checkout request timed out")
             return False, {'error': 'Bank payment request timed out. Please try again.'}
         except requests.RequestException as e:
-            logger.error(f"AzamPay bank checkout failed: {str(e)}")
+            logger.error(f"❌ AzamPay bank checkout failed: {str(e)}")
             return False, {'error': f'Bank payment request failed: {str(e)}'}
         except Exception as e:
             logger.error(f"Unexpected error in bank checkout: {str(e)}")
