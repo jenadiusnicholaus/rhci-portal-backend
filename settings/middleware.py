@@ -126,6 +126,25 @@ class RequestLoggingMiddleware:
             self._log_response_body(response)
         
         logger.info("=" * 80)
+    
+    def _log_response_body(self, response):
+        """Log response body for errors"""
+        try:
+            if hasattr(response, 'content'):
+                content_type = response.get('Content-Type', '').lower()
+                
+                if 'application/json' in content_type:
+                    try:
+                        body = json.loads(response.content.decode('utf-8'))
+                        logger.error(f"  Response Body: {json.dumps(body, indent=2)[:1000]}")
+                    except:
+                        logger.error(f"  Response Body: {response.content.decode('utf-8')[:500]}")
+                elif 'text/html' in content_type:
+                    logger.error(f"  Response Body (HTML): {response.content.decode('utf-8')[:500]}")
+                else:
+                    logger.error(f"  Response Body: {str(response.content)[:500]}")
+        except Exception as e:
+            logger.warning(f"  Could not parse response body: {e}")
 
 
 class CORSDebugMiddleware:
