@@ -407,7 +407,32 @@ export const getCurrencyWarning = (currency: string): string | null => {
 - Backend validates this before processing
 - Show clear error if user tries non-TZS payment
 
-### 3. **Amount Scale Differences**
+### 3. **AzamPay Environment (Sandbox vs Production)**
+
+The backend automatically switches between sandbox and production based on the `AZAM_PAY_ENVIRONMENT` setting in `.env`.
+
+#### Environment Detection:
+The backend automatically handles environment switching. You can detect which environment is active by checking the API response:
+
+```typescript
+// After successful payment initiation
+if (response.data.message.includes('sandbox mode')) {
+  // Sandbox: Payment auto-completed for testing
+  console.log('Sandbox mode - payment auto-completed');
+} else {
+  // Production: Real payment, check phone for confirmation
+  console.log('Production mode - check phone for payment prompt');
+}
+```
+
+⚠️ **IMPORTANT - Production Deployment:**
+- Backend team manages production credentials via environment variables
+- **Production payments are REAL** - money will be charged
+- Test thoroughly in sandbox before deploying to production
+- Ensure proper error handling for live payments
+- Monitor production transactions closely
+
+### 4. **Amount Scale Differences**
 ```javascript
 // TZS amounts are much larger than USD
 USD: $50 = reasonable donation
@@ -420,7 +445,7 @@ const exampleAmounts = {
 };
 ```
 
-### 4. **Backward Compatibility**
+### 5. **Backward Compatibility**
 - Existing donations without currency field will default to `USD`
 - Existing patients without `funding_currency` will default to `USD`
 - New donations default to `TZS`
@@ -447,6 +472,14 @@ const exampleAmounts = {
 - [ ] Patient with USD funding (cannot donate via AzamPay - show message)
 - [ ] Mixed currency donation amounts (should filter/warn)
 - [ ] Large TZS numbers display correctly (commas, formatting)
+
+### Production Testing (AFTER sandbox testing is complete):
+- [ ] **⚠️ Use real phone number and small test amount (e.g., 1000 TZS)**
+- [ ] Verify real payment prompt appears on phone
+- [ ] Complete payment and verify status updates
+- [ ] Check transaction appears in AzamPay production dashboard
+- [ ] Verify patient funding is updated correctly
+- [ ] Test refund process if needed
 
 ---
 
@@ -482,19 +515,27 @@ GET    /api/v1.0/patients/public/{patient_id}/donation-amounts/ # Get amounts (r
 ```
 
 ---
-
-## 🚀 Migration Steps
-
-### Phase 1: Admin Panel (Week 1)
-1. Add currency dropdown to patient forms
-2. Update patient list to show currency
-3. Add currency to donation amount forms
-4. Test admin workflows
+5. **Test in sandbox environment only**
 
 ### Phase 2: Donor UI (Week 2)
 1. Update patient card displays
 2. Add currency to donation flow
 3. Implement TZS validation
+4. Update quick-select buttons
+5. **Complete end-to-end testing in sandbox**
+6. Test error handling thoroughly
+
+### Phase 3: Polish & Production (Week 3)
+1. Update donation history
+2. Add currency to receipts
+3. Update all amount displays
+4. Final sandbox testing
+5. **⚠️ Production deployment checklist:**
+   - Backend team confirms production credentials configured
+   - Conduct small test transaction (1000 TZS) in production
+   - Verify webhook callbacks working
+   - Monitor first real donations closely
+   - Set up alerts for failed transactions validation
 4. Update quick-select buttons
 5. Test donation process end-to-end
 

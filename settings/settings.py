@@ -338,11 +338,19 @@ if not DEBUG:
 # Environment: 'sandbox' or 'production'
 AZAM_PAY_ENVIRONMENT = config('AZAM_PAY_ENVIRONMENT', default='sandbox')
 
-AZAM_PAY_AUTH = config('AZAM_PAY_AUTH', default='https://authenticator-sandbox.azampay.co.tz')
-AZAM_PAY_CHECKOUT_URL = config('AZAM_PAY_CHECKOUT_URL', default='https://sandbox.azampay.co.tz')
-AZAM_PAY_APP_NAME = config('AZAM_PAY_APP_NAME', default='eshop')
-AZAM_PAY_CLIENT_ID = config('AZAM_PAY_CLIENT_ID', default='')
-AZAM_PAY_CLIENT_SECRET = config('AZAM_PAY_CLIENT_SECRET', default='')
+# Dynamically load credentials based on environment
+if AZAM_PAY_ENVIRONMENT == 'production':
+    AZAM_PAY_AUTH = config('AZAM_PAY_PROD_AUTH', default='https://authenticator.azampay.co.tz')
+    AZAM_PAY_CHECKOUT_URL = config('AZAM_PAY_PROD_CHECKOUT_URL', default='https://checkout.azampay.co.tz')
+    AZAM_PAY_APP_NAME = config('AZAM_PAY_PROD_APP_NAME', default='RHCI-App')
+    AZAM_PAY_CLIENT_ID = config('AZAM_PAY_PROD_CLIENT_ID', default='')
+    AZAM_PAY_CLIENT_SECRET = config('AZAM_PAY_PROD_CLIENT_SECRET', default='')
+else:
+    AZAM_PAY_AUTH = config('AZAM_PAY_SANDBOX_AUTH', default='https://authenticator-sandbox.azampay.co.tz')
+    AZAM_PAY_CHECKOUT_URL = config('AZAM_PAY_SANDBOX_CHECKOUT_URL', default='https://sandbox.azampay.co.tz')
+    AZAM_PAY_APP_NAME = config('AZAM_PAY_SANDBOX_APP_NAME', default='RHCI-App')
+    AZAM_PAY_CLIENT_ID = config('AZAM_PAY_SANDBOX_CLIENT_ID', default='')
+    AZAM_PAY_CLIENT_SECRET = config('AZAM_PAY_SANDBOX_CLIENT_SECRET', default='')
 
 # Timeout configuration (seconds)
 # Sandbox: No timeout (None) - responses are slower
@@ -354,7 +362,8 @@ AZAM_PAY_TIMEOUT_READ = config('AZAM_PAY_TIMEOUT_READ', default=60 if AZAM_PAY_E
 # Set this to verify the 'password' field in webhook callbacks
 AZAM_PAY_WEBHOOK_PASSWORD = config('AZAM_PAY_WEBHOOK_PASSWORD', default='')
 
-# Exchange rate for USD to TZS (update regularly or use API)
+# Exchange rate for USD to TZS (deprecated - no longer used in multi-currency system)
+# Kept for backward compatibility only
 USD_TO_TZS_RATE = config('USD_TO_TZS_RATE', default=2300, cast=float)
 
 # ============================================================================
