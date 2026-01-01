@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from datetime import date
 from auth_app.lookups import CountryLookup
+from utils.constants import CURRENCY_CHOICES
 
 
 class PatientProfile(models.Model):
@@ -42,6 +43,12 @@ class PatientProfile(models.Model):
     # Funding Summary (set by admin during verification)
     funding_required = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Amount RHCI raises for patient")
     funding_received = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    funding_currency = models.CharField(
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='USD',
+        help_text="Currency for patient funding"
+    )
     total_treatment_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Total average cost including other contributions")
     cost_breakdown_notes = models.TextField(blank=True, help_text="Additional notes about cost breakdown")
     
@@ -192,6 +199,12 @@ class DonationAmountOption(models.Model):
         decimal_places=2,
         help_text="Suggested donation amount"
     )
+    currency = models.CharField(
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='USD',
+        help_text="Currency for this donation amount"
+    )
     display_order = models.IntegerField(
         default=0,
         help_text="Order to display (lower numbers first)"
@@ -213,11 +226,21 @@ class DonationAmountOption(models.Model):
         ordering = ['patient_profile', 'display_order', 'amount']
         verbose_name = 'Donation Amount Option'
         verbose_name_plural = 'Donation Amount Options'
-        unique_together = ['patient_profile', 'amount']
+        unique_together = ['patient_profile', 'amount', 'currency']
     
     def __str__(self):
         recommended = " (Recommended)" if self.is_recommended else ""
-        return f"{self.patient_profile.full_name} - ${self.amount}{recommended}"
+        currency_symbol = self.get_currency_symbol()
+        return f"{self.patient_profile.full_name} - {currency_symbol}{self.amount}{recommended}"
+    
+    def get_currency_symbol(self):
+        """Return the currency symbol"""
+        currency_symbols = {
+            'USD': '$', 'EUR': '€', 'GBP': '£', 'TZS': 'TSh',
+            'KES': 'KSh', 'UGX': 'USh', 'ZAR': 'R', 'NGN': '₦',
+            'GHS': 'GH₵', 'CAD': 'C$', 'AUD': 'A$',
+        }
+        return currency_symbols.get(self.currency, self.currency)
 
 
 class PatientTimeline(models.Model):
