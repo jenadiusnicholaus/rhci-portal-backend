@@ -53,6 +53,11 @@ class AnonymousOneTimePatientDonationView(APIView):
         - **Mobile Money:** `mpesa`, `airtel`, `tigo`, `halopesa`, `azampesa`
         - **Bank:** `crdb`, `nmb`
         
+        **⚠️ IMPORTANT - Currency:**
+        - AzamPay ONLY accepts **TZS (Tanzanian Shillings)**
+        - Set `currency: "TZS"` or leave empty (defaults to TZS)
+        - Amount should be in Tanzanian Shillings (e.g., 50000 TZS = ~$20 USD)
+        
         **Required Fields:**
         - For Mobile Money: `phone_number`
         - For Bank: `merchant_account_number`, `merchant_mobile_number`, `otp`
@@ -62,7 +67,14 @@ class AnonymousOneTimePatientDonationView(APIView):
             required=['patient_id', 'amount', 'anonymous_name', 'anonymous_email', 'payment_method', 'provider'],
             properties={
                 'patient_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='Patient ID (get from {{base_url}}/api/v1.0/auth/patients/discover/?page=4)'),
-                'amount': openapi.Schema(type=openapi.TYPE_NUMBER, example=50.00),
+                'amount': openapi.Schema(type=openapi.TYPE_NUMBER, example=50000.00, description='Amount in TZS (Tanzanian Shillings)'),
+                'currency': openapi.Schema(
+                    type=openapi.TYPE_STRING, 
+                    example='TZS', 
+                    default='TZS',
+                    enum=['USD', 'EUR', 'GBP', 'TZS', 'KES', 'UGX', 'ZAR', 'NGN', 'GHS', 'CAD', 'AUD'],
+                    description='Currency code - MUST be TZS for AzamPay. Other currencies stored but cannot be processed through payment gateway.'
+                ),
                 'anonymous_name': openapi.Schema(type=openapi.TYPE_STRING, example='John Doe'),
                 'anonymous_email': openapi.Schema(type=openapi.TYPE_STRING, example='john@example.com'),
                 'message': openapi.Schema(type=openapi.TYPE_STRING, example='Get well soon!'),
@@ -122,6 +134,7 @@ class AnonymousOneTimePatientDonationView(APIView):
             with db_transaction.atomic():
                 donation_data = {
                     'amount': Decimal(str(amount)),
+                    'currency': request.data.get('currency', 'TZS'),  # Default to TZS
                     'donation_type': donation_type,
                     'status': 'PENDING',
                     'message': request.data.get('message', ''),
@@ -145,8 +158,17 @@ class AnonymousOneTimePatientDonationView(APIView):
                 donation = Donation.objects.create(**donation_data)
                 logger.info(f"Created {'recurring' if is_recurring else 'one-time'} donation {donation.id}")
             
-            # Initiate payment
-            payment_amount = donation.amount * Decimal('2300')
+            # Validate currency for AzamPay (only supports TZS)
+            if donation.currency != 'TZS':
+                donation.status = 'FAILED'
+                donation.save()
+                return Response({
+                    'error': f'AzamPay only accepts Tanzanian Shillings (TZS). Your donation is in {donation.currency}.',
+                    'message': 'Please create a new donation with currency set to TZS.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Initiate payment - use amount directly (no conversion)
+            payment_amount = donation.amount
             external_id = f"RHCI-DN-{donation.id}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
             
             donor_info = {
@@ -172,7 +194,7 @@ class AnonymousOneTimePatientDonationView(APIView):
             if payment_method == 'MOBILE_MONEY':
                 success, response_data = azampay_service.initiate_checkout(
                     amount=payment_amount,
-                    currency='TZS',
+                    currency=donation.currency,  # Use donation's currency
                     external_id=external_id,
                     provider=provider,
                     account_number=request.data.get('phone_number'),
@@ -181,7 +203,7 @@ class AnonymousOneTimePatientDonationView(APIView):
             else:
                 success, response_data = azampay_service.initiate_bank_checkout(
                     amount=payment_amount,
-                    currency='TZS',
+                    currency=donation.currency,  # Use donation's currency
                     external_id=external_id,
                     provider=provider,
                     merchant_account_number=request.data.get('merchant_account_number'),
@@ -233,7 +255,7 @@ class AnonymousOneTimePatientDonationView(APIView):
                     'payment': {
                         'transaction_id': donation.transaction_id,
                         'amount': str(payment_amount),
-                        'currency': 'TZS',
+                        'currency': donation.currency,
                         'provider': provider,
                     }
                 }

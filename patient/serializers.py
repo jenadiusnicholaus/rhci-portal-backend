@@ -368,7 +368,7 @@ class AdminPatientReviewSerializer(serializers.ModelSerializer):
             'photo', 'photo_url', 'full_name', 'age', 'gender', 'country',
             'short_description', 'long_story', 'medical_partner',
             'diagnosis', 'treatment_needed', 'treatment_date',
-            'funding_required', 'funding_received', 'total_treatment_cost',
+            'funding_required', 'funding_received', 'funding_currency', 'total_treatment_cost',
             'funding_percentage', 'funding_remaining',
             'cost_breakdowns', 'cost_breakdown_notes',
             'timeline_events', 'status', 'created_at', 'updated_at'
@@ -441,7 +441,7 @@ class AdminPatientManagementSerializer(serializers.ModelSerializer):
             'photo', 'photo_url', 'full_name', 'gender', 'country_fk', 'country_name', 'age',
             'short_description', 'long_story',
             'medical_partner', 'diagnosis', 'treatment_needed', 'treatment_date',
-            'funding_required', 'funding_received', 'total_treatment_cost', 'cost_breakdown_notes',
+            'funding_required', 'funding_received', 'funding_currency', 'total_treatment_cost', 'cost_breakdown_notes',
             'funding_percentage', 'funding_remaining',
             'status', 'is_featured', 'rejection_reason',
             'created_by_admin', 'last_updated_by',
@@ -481,7 +481,7 @@ class AdminPatientCreateSerializer(serializers.ModelSerializer):
             'photo', 'full_name', 'gender', 'country_fk',
             'short_description', 'long_story',
             'medical_partner', 'diagnosis', 'treatment_needed', 'treatment_date',
-            'funding_required', 'funding_received', 'total_treatment_cost', 'cost_breakdown_notes',
+            'funding_required', 'funding_received', 'funding_currency', 'total_treatment_cost', 'cost_breakdown_notes',
             'status', 'is_featured'
         ]
     
@@ -646,8 +646,9 @@ class DonationCreateSerializer(serializers.Serializer):
                  ('TZS', 'Tanzanian Shilling'), ('KES', 'Kenyan Shilling'), ('UGX', 'Ugandan Shilling'),
                  ('ZAR', 'South African Rand'), ('NGN', 'Nigerian Naira'), ('GHS', 'Ghanaian Cedi'),
                  ('CAD', 'Canadian Dollar'), ('AUD', 'Australian Dollar')],
-        default='USD',
-        required=False
+        default='TZS',
+        required=False,
+        help_text='Currency code. MUST be TZS for AzamPay payment processing. Defaults to TZS.'
     )
     donation_type = serializers.ChoiceField(
         choices=[('ONE_TIME', 'One-time Donation'), ('MONTHLY', 'Monthly Recurring')],
@@ -691,6 +692,7 @@ class DonationSerializer(serializers.ModelSerializer):
     """
     donor_name = serializers.SerializerMethodField()
     patient_name = serializers.SerializerMethodField()
+    currency_display = serializers.CharField(source='get_currency_display', read_only=True)
     donation_type_display = serializers.CharField(source='get_donation_type_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     is_recurring = serializers.ReadOnlyField()
@@ -701,7 +703,7 @@ class DonationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'donor', 'donor_name', 'is_anonymous',
             'patient', 'patient_name',
-            'amount', 'currency', 'donation_type', 'donation_type_display',
+            'amount', 'currency', 'currency_display', 'donation_type', 'donation_type_display',
             'status', 'status_display',
             'message', 'dedication',
             'payment_method', 'transaction_id',
