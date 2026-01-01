@@ -3,6 +3,7 @@ from django.conf import settings
 from datetime import date
 from decimal import Decimal
 from auth_app.lookups import CountryLookup
+from utils.constants import CURRENCY_CHOICES
 
 
 class DonorProfile(models.Model):
@@ -99,7 +100,13 @@ class Donation(models.Model):
     amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        help_text="Donation amount in USD"
+        help_text="Donation amount"
+    )
+    currency = models.CharField(
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='USD',
+        help_text="Currency of the donation"
     )
     donation_type = models.CharField(
         max_length=20,

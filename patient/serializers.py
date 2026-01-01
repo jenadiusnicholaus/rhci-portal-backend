@@ -68,14 +68,18 @@ class TreatmentCostBreakdownSerializer(serializers.ModelSerializer):
 
 class DonationAmountOptionSerializer(serializers.ModelSerializer):
     """Serializer for donation amount options (read-only for public/donor views)"""
+    currency_symbol = serializers.SerializerMethodField()
     
     class Meta:
         model = DonationAmountOption
         fields = [
-            'id', 'amount', 'display_order', 'is_active', 
+            'id', 'amount', 'currency', 'currency_symbol', 'display_order', 'is_active', 
             'is_recommended', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_currency_symbol(self, obj):
+        return obj.get_currency_symbol()
 
 
 class DonationAmountOptionCreateSerializer(serializers.ModelSerializer):
@@ -83,7 +87,7 @@ class DonationAmountOptionCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = DonationAmountOption
-        fields = ['amount', 'display_order', 'is_active', 'is_recommended']
+        fields = ['amount', 'currency', 'display_order', 'is_active', 'is_recommended']
     
     def validate_amount(self, value):
         """Ensure amount is positive"""
@@ -168,7 +172,7 @@ class PatientProfileSerializer(serializers.ModelSerializer):
             # Media
             'images', 'video',
             # Funding summary
-            'funding_required', 'funding_received', 'total_treatment_cost',
+            'funding_required', 'funding_received', 'funding_currency', 'total_treatment_cost',
             'funding_percentage', 'funding_remaining', 'other_contributions',
             # Funding display fields
             'funding_percentage_display', 'funding_raised_display', 
@@ -184,7 +188,7 @@ class PatientProfileSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'user', 'age', 'medical_partner',
             'diagnosis', 'treatment_needed', 'treatment_date',
-            'funding_required', 'funding_received', 'total_treatment_cost',
+            'funding_required', 'funding_received', 'funding_currency', 'total_treatment_cost',
             'cost_breakdowns', 'status', 'created_at', 'updated_at', 'country'
         ]
 
@@ -364,7 +368,7 @@ class AdminPatientReviewSerializer(serializers.ModelSerializer):
             'photo', 'photo_url', 'full_name', 'age', 'gender', 'country',
             'short_description', 'long_story', 'medical_partner',
             'diagnosis', 'treatment_needed', 'treatment_date',
-            'funding_required', 'funding_received', 'total_treatment_cost',
+            'funding_required', 'funding_received', 'funding_currency', 'total_treatment_cost',
             'funding_percentage', 'funding_remaining',
             'cost_breakdowns', 'cost_breakdown_notes',
             'timeline_events', 'status', 'created_at', 'updated_at'
@@ -437,7 +441,7 @@ class AdminPatientManagementSerializer(serializers.ModelSerializer):
             'photo', 'photo_url', 'full_name', 'gender', 'country_fk', 'country_name', 'age',
             'short_description', 'long_story',
             'medical_partner', 'diagnosis', 'treatment_needed', 'treatment_date',
-            'funding_required', 'funding_received', 'total_treatment_cost', 'cost_breakdown_notes',
+            'funding_required', 'funding_received', 'funding_currency', 'total_treatment_cost', 'cost_breakdown_notes',
             'funding_percentage', 'funding_remaining',
             'status', 'is_featured', 'rejection_reason',
             'created_by_admin', 'last_updated_by',
@@ -477,7 +481,7 @@ class AdminPatientCreateSerializer(serializers.ModelSerializer):
             'photo', 'full_name', 'gender', 'country_fk',
             'short_description', 'long_story',
             'medical_partner', 'diagnosis', 'treatment_needed', 'treatment_date',
-            'funding_required', 'funding_received', 'total_treatment_cost', 'cost_breakdown_notes',
+            'funding_required', 'funding_received', 'funding_currency', 'total_treatment_cost', 'cost_breakdown_notes',
             'status', 'is_featured'
         ]
     
@@ -637,6 +641,15 @@ class DonationCreateSerializer(serializers.Serializer):
     
     # Donation details
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=1.00)
+    currency = serializers.ChoiceField(
+        choices=[('USD', 'US Dollar'), ('EUR', 'Euro'), ('GBP', 'British Pound'), 
+                 ('TZS', 'Tanzanian Shilling'), ('KES', 'Kenyan Shilling'), ('UGX', 'Ugandan Shilling'),
+                 ('ZAR', 'South African Rand'), ('NGN', 'Nigerian Naira'), ('GHS', 'Ghanaian Cedi'),
+                 ('CAD', 'Canadian Dollar'), ('AUD', 'Australian Dollar')],
+        default='TZS',
+        required=False,
+        help_text='Currency code. MUST be TZS for AzamPay payment processing. Defaults to TZS.'
+    )
     donation_type = serializers.ChoiceField(
         choices=[('ONE_TIME', 'One-time Donation'), ('MONTHLY', 'Monthly Recurring')],
         default='ONE_TIME'
@@ -679,6 +692,7 @@ class DonationSerializer(serializers.ModelSerializer):
     """
     donor_name = serializers.SerializerMethodField()
     patient_name = serializers.SerializerMethodField()
+    currency_display = serializers.CharField(source='get_currency_display', read_only=True)
     donation_type_display = serializers.CharField(source='get_donation_type_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     is_recurring = serializers.ReadOnlyField()
@@ -689,7 +703,7 @@ class DonationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'donor', 'donor_name', 'is_anonymous',
             'patient', 'patient_name',
-            'amount', 'donation_type', 'donation_type_display',
+            'amount', 'currency', 'currency_display', 'donation_type', 'donation_type_display',
             'status', 'status_display',
             'message', 'dedication',
             'payment_method', 'transaction_id',
