@@ -30,18 +30,18 @@ class PatientTimelineInline(admin.TabularInline):
 class PatientProfileAdmin(admin.ModelAdmin):
     inlines = [DonationAmountOptionInline, TreatmentCostBreakdownInline, PatientTimelineInline]
     list_display = [
-        'full_name', 'status', 'funding_required', 'funding_received', 
+        'full_name', 'bill_identifier', 'status', 'funding_required', 'funding_received', 
         'cost_breakdown_total', 'created_at'
     ]
     list_filter = ['status', 'gender', 'created_at']
-    search_fields = ['full_name', 'user__email', 'diagnosis']
+    search_fields = ['full_name', 'user__email', 'diagnosis', 'bill_identifier']
     readonly_fields = [
         'age', 'cost_breakdown_total', 'funding_percentage', 
         'funding_remaining', 'other_contributions', 'created_at', 'updated_at'
     ]
     fieldsets = (
         ('User Info', {
-            'fields': ('user', 'full_name', 'age', 'gender', 'country_fk')
+            'fields': ('user', 'full_name', 'age', 'gender', 'country_fk', 'bill_identifier')
         }),
         ('Medical Details', {
             'fields': ('medical_partner', 'diagnosis', 'treatment_needed', 'treatment_date')

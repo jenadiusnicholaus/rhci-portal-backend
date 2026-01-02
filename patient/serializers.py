@@ -166,7 +166,7 @@ class PatientProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = PatientProfile
         fields = [
-            'id', 'user', 'photo', 'photo_url', 'full_name', 'age', 'gender', 'country',
+            'id', 'user', 'bill_identifier', 'photo', 'photo_url', 'full_name', 'age', 'gender', 'country',
             'short_description', 'long_story', 'medical_partner',
             'diagnosis', 'treatment_needed', 'treatment_date',
             # Media
@@ -186,7 +186,7 @@ class PatientProfileSerializer(serializers.ModelSerializer):
         ]
         # Patients can update basic info and story, admin updates medical/funding via Django admin
         read_only_fields = [
-            'user', 'age', 'medical_partner',
+            'user', 'bill_identifier', 'age', 'medical_partner',
             'diagnosis', 'treatment_needed', 'treatment_date',
             'funding_required', 'funding_received', 'funding_currency', 'total_treatment_cost',
             'cost_breakdowns', 'status', 'created_at', 'updated_at', 'country'

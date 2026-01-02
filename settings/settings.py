@@ -362,6 +362,12 @@ AZAM_PAY_TIMEOUT_READ = config('AZAM_PAY_TIMEOUT_READ', default=60 if AZAM_PAY_E
 # Set this to verify the 'password' field in webhook callbacks
 AZAM_PAY_WEBHOOK_PASSWORD = config('AZAM_PAY_WEBHOOK_PASSWORD', default='')
 
+# Bill Pay API Security (for USSD/Mobile Money donations)
+# JWT secret for token verification
+AZAMPAY_BILLPAY_JWT_SECRET = config('AZAMPAY_BILLPAY_JWT_SECRET', default='your-jwt-secret-change-in-production')
+# HMAC secret for signature verification
+AZAMPAY_BILLPAY_SECRET = config('AZAMPAY_BILLPAY_SECRET', default='your-hmac-secret-change-in-production')
+
 # Exchange rate for USD to TZS (deprecated - no longer used in multi-currency system)
 # Kept for backward compatibility only
 USD_TO_TZS_RATE = config('USD_TO_TZS_RATE', default=2300, cast=float)

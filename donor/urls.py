@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from .views import (
     PublicDonorProfileView,
     DonorProfileListView,
@@ -83,7 +83,7 @@ urlpatterns = [
     path('admin/donors/<int:id>/activate/', AdminDonorActivationView.as_view(), name='admin_donor_activation'),
     path('admin/donors/stats/', AdminDonorStatsView.as_view(), name='admin_donor_stats'),
     
-    # ============ PAYMENT ENDPOINTS (AZAM PAY) ============
+    # ============ PAYMENT ENDPOINTS (AZAM PAY CHECKOUT) ============
     # Webhook callback (called by Azam Pay when payment completes)
     path('payment/azampay/callback/', AzamPayCallbackView.as_view(), name='azampay_callback'),
     
@@ -92,4 +92,8 @@ urlpatterns = [
     
     # Manual status update (sandbox testing only - disable in production)
     path('payment/manual-update/', ManualPaymentUpdateView.as_view(), name='manual_payment_update'),
+    
+    # ============ BILL PAY API (AZAM PAY - USSD/MOBILE MONEY) ============
+    # Bill Pay API endpoints (called by AzamPay for USSD/Mobile Money donations)
+    path('', include('donor.payments.billpay_urls')),
 ]

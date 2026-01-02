@@ -271,3 +271,25 @@ SECURE_HSTS_SECONDS=31536000
    - Run `python manage.py collectstatic`
    - Check STATIC_URL and STATIC_ROOT settings
    - Verify web server configuration for static files
+
+## AzamPay Bill Pay API Configuration
+
+### AZAMPAY_BILLPAY_JWT_SECRET
+- **Type**: String
+- **Required**: Yes (for Bill Pay API)
+- **Default**: your-jwt-secret-change-in-production
+- **Description**: JWT secret key for verifying tokens from AzamPay Bill Pay API
+- **Security**: MUST be changed in production. Obtain from AzamPay when setting up Bill Pay API.
+
+### AZAMPAY_BILLPAY_SECRET
+- **Type**: String
+- **Required**: Yes (for Bill Pay API)
+- **Default**: your-hmac-secret-change-in-production
+- **Description**: HMAC secret key for verifying signatures from AzamPay Bill Pay API
+- **Security**: MUST be changed in production. Obtain from AzamPay when setting up Bill Pay API.
+
+**Example .env**:
+```env
+AZAMPAY_BILLPAY_JWT_SECRET=your-actual-jwt-secret-from-azampay
+AZAMPAY_BILLPAY_SECRET=your-actual-hmac-secret-from-azampay
+```

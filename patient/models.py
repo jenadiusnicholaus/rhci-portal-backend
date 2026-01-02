@@ -24,6 +24,16 @@ class PatientProfile(models.Model):
     # Relationship
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='patient_profile')
     
+    # Bill Pay / USSD Identifier (unique shareable code)
+    bill_identifier = models.CharField(
+        max_length=50,
+        unique=True,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="Unique code for Bill Pay/USSD donations (e.g., JIMMY-2024-001)"
+    )
+    
     # Core Info (collected during registration)
     photo = models.ImageField(upload_to='patient_photos/', null=True, blank=True, help_text="Patient profile photo")
     full_name = models.CharField(max_length=200)
@@ -73,6 +83,31 @@ class PatientProfile(models.Model):
     def __str__(self):
         return f"{self.full_name} - {self.status}"
     
+    def save(self, *args, **kwargs):
+        """Auto-generate bill_identifier if not set"""
+        if not self.bill_identifier:
+            self.bill_identifier = self._generate_bill_identifier()
+        super().save(*args, **kwargs)
+    
+    def _generate_bill_identifier(self):
+        """Generate unique bill identifier like: JIMMY-2024-001"""
+        import random
+        import string
+        from datetime import datetime
+        
+        # Get first name (uppercase, max 10 chars)
+        first_name = self.full_name.split()[0].upper()[:10]
+        year = datetime.now().year
+        
+        # Generate 3-digit random suffix
+        while True:
+            suffix = ''.join(random.choices(string.digits, k=3))
+            code = f"{first_name}-{year}-{suffix}"
+            
+            # Check uniqueness
+            if not PatientProfile.objects.filter(bill_identifier=code).exists():
+                return code
+    
     @property
     def age(self):
         """Calculate age from user's date of birth"""
@@ -86,7 +121,7 @@ class PatientProfile(models.Model):
     @property
     def funding_percentage(self):
         if self.funding_required > 0:
-            return round((self.funding_received / self.funding_required) * 100, 1)
+            return round((self.funding_received / self.funding_required) * 100, 2)
         return 0
     
     @property
@@ -95,8 +130,14 @@ class PatientProfile(models.Model):
     
     @property
     def funding_percentage_display(self):
-        """Display funding percentage as '42% of funding raised'"""
-        return f"{int(self.funding_percentage)}% of funding raised"
+        """Display funding percentage with appropriate precision"""
+        percentage = self.funding_percentage
+        if percentage < 1:
+            # Show 2 decimal places for small percentages (e.g., 0.01%)
+            return f"{percentage:.2f}% of funding raised"
+        else:
+            # Show whole number for larger percentages (e.g., 42%)
+            return f"{int(percentage)}% of funding raised"
     
     @property
     def funding_raised_display(self):
@@ -112,7 +153,7 @@ class PatientProfile(models.Model):
     def funding_summary(self):
         """Complete funding summary"""
         return {
-            'percentage': int(self.funding_percentage),
+            'percentage': self.funding_percentage,  # Keep decimal precision (e.g., 0.01, 42.5)
             'percentage_display': self.funding_percentage_display,
             'raised': float(self.funding_received),
             'raised_display': self.funding_raised_display,

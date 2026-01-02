@@ -49,12 +49,15 @@ class AzamPayService:
         
         logger.info(f"AzamPay Service initialized - Environment: {self.environment}, Timeout: {self.timeout}")
         
-        # Provider mappings (exact values from AzamPay API docs)
+        # Provider mappings (from official AzamPay API docs)
+        # https://developerdocs.azampay.co.tz/redoc#tag/Checkout-API/operation/Mno%20Checkout
+        # Valid values: "Airtel", "Tigo", "Halopesa", "Azampesa", "Mpesa"
         self.mobile_providers = {
             'mpesa': 'Mpesa',
             'airtel': 'Airtel',
             'tigo': 'Tigo',
             'halopesa': 'Halopesa',
+            'halotel': 'Halopesa',  # Alternative name for Halopesa
             'azampesa': 'Azampesa'
         }
         
@@ -178,14 +181,20 @@ class AzamPayService:
         """
         try:
             # Validate and normalize provider
-            provider_key = provider.lower().replace(' ', '')
+            provider_key = provider.lower().replace(' ', '').replace('-', '')
+            
+            logger.info(f"Provider input: '{provider}' -> normalized key: '{provider_key}'")
+            
             if provider_key not in self.mobile_providers:
+                logger.error(f"❌ Unsupported provider: {provider}")
+                logger.error(f"❌ Supported providers: {list(self.mobile_providers.keys())}")
                 raise AzamPayError(
                     f"Unsupported mobile provider: {provider}. "
                     f"Supported: {list(self.mobile_providers.keys())}"
                 )
             
             azam_provider = self.mobile_providers[provider_key]
+            logger.info(f"✅ Using AzamPay provider name: '{azam_provider}' for input '{provider}'")
             
             # Normalize phone number
             normalized_phone = self._normalize_phone_number(account_number)
@@ -284,7 +293,22 @@ class AzamPayService:
             else:
                 # Handle validation errors
                 error_msg = data.get('message', 'Unknown error')
+                message_code = data.get('messageCode', 'N/A')
                 errors = data.get('errors', {})
+                
+                # Special handling for "Invalid Vendor" error
+                if 'Invalid Vendor' in error_msg or 'invalid vendor' in error_msg.lower():
+                    logger.error(f"❌ INVALID VENDOR ERROR!")
+                    logger.error(f"❌ Provider sent to AzamPay: '{azam_provider}'")
+                    logger.error(f"❌ This means '{azam_provider}' is NOT ENABLED in your AzamPay merchant account")
+                    logger.error(f"❌ SOLUTION:")
+                    logger.error(f"   1. Log into AzamPay merchant dashboard")
+                    logger.error(f"   2. Go to Settings > Payment Methods")
+                    logger.error(f"   3. Enable '{azam_provider}' as a payment provider")
+                    logger.error(f"   4. Contact AzamPay support if you can't enable it")
+                    logger.error(f"   5. Valid providers from docs: Airtel, Tigo, Halopesa, Azampesa, Mpesa")
+                    logger.error(f"❌ Message Code: {message_code}")
+                    logger.error(f"❌ Environment: {self.environment}")
                 
                 if errors:
                     error_details = []
@@ -295,8 +319,9 @@ class AzamPayService:
                         error_msg += f": {'; '.join(error_details)}"
                 
                 logger.error(f"❌ AzamPay checkout failed: {error_msg}")
+                logger.error(f"❌ Message Code: {message_code}")
                 logger.error(f"❌ Full error data: {data}")
-                return False, {'error': error_msg, 'data': data}
+                return False, {'error': error_msg, 'data': data, 'messageCode': message_code}
                 
         except AzamPayError as e:
             logger.error(f"❌ AzamPay Error: {str(e)}")
