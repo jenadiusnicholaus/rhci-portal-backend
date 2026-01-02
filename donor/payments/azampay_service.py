@@ -549,6 +549,7 @@ class AzamPayService:
                 'client_id': callback_data.get('clientId'),
                 'utility_ref': callback_data.get('utilityref'),
                 'password': callback_data.get('password'),                      # Webhook auth password
+                'additional_properties': callback_data.get('additionalProperties', {}),  # Custom metadata
                 'raw_data': callback_data
             }
             
