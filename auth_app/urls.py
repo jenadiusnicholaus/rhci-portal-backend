@@ -3,6 +3,11 @@ from .views import (
     LoginView, UserProfileView, CountryLookupListView, ExpenseTypeLookupListView,
     AdminExpenseTypeListCreateView, AdminExpenseTypeDetailView
 )
+from .admin_views import (
+    AdminFinancialReportListCreateView,
+    AdminFinancialReportDetailView,
+    PublicFinancialReportView
+)
 from donor.views import (
     DonorRegisterView, DonorProfileView,
     DonorEmailVerificationView, DonorResendVerificationView
@@ -43,4 +48,11 @@ urlpatterns = [
     # ============ ADMIN EXPENSE TYPE MANAGEMENT ============
     path('admin/expense-types/', AdminExpenseTypeListCreateView.as_view(), name='admin_expense_type_list_create'),
     path('admin/expense-types/<int:id>/', AdminExpenseTypeDetailView.as_view(), name='admin_expense_type_detail'),
+    
+    # ============ ADMIN FINANCIAL REPORTS ============
+    path('admin/financial-reports/', AdminFinancialReportListCreateView.as_view(), name='admin_financial_report_list_create'),
+    path('admin/financial-reports/<int:pk>/', AdminFinancialReportDetailView.as_view(), name='admin_financial_report_detail'),
+    
+    # ============ PUBLIC FINANCIAL TRANSPARENCY ============
+    path('financial-report/public/', PublicFinancialReportView.as_view(), name='public_financial_report'),
 ]

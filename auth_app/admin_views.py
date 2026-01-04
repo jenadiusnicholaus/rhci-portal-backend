@@ -527,3 +527,146 @@ class PublicFeaturedPatientsView(generics.ListAPIView):
         ).select_related('user').prefetch_related(
             'cost_breakdowns', 'timeline_events'
         ).order_by('-created_at')[:6]  # Limit to 6 featured patients
+
+
+# ============ FINANCIAL REPORTS VIEWS ============
+
+class AdminFinancialReportListCreateView(generics.ListCreateAPIView):
+    """
+    Admin endpoint to list all financial reports and upload new ones.
+    """
+    from .models import FinancialReport
+    from .serializers import FinancialReportSerializer
+    
+    queryset = FinancialReport.objects.all()
+    serializer_class = FinancialReportSerializer
+    permission_classes = [IsAdminUser]
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] List & Upload Financial Reports",
+        operation_description="""
+        List all financial reports or upload a new one.
+        
+        **Upload Process:**
+        1. Upload Excel/PDF document using base64 encoding
+        2. Provide title and optional description
+        3. Mark as public for community transparency (only one can be public at a time)
+        
+        **Allowed File Types:** PDF, XLSX, XLS, DOC, DOCX
+        **Max File Size:** 20MB
+        """,
+        tags=['Admin - Financial Reports'],
+        responses={
+            200: FinancialReportSerializer(many=True),
+            201: FinancialReportSerializer,
+            400: 'Bad Request - Invalid file or data',
+            401: 'Unauthorized',
+            403: 'Forbidden - Admin access required'
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Upload Financial Report",
+        tags=['Admin - Financial Reports'],
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
+
+class AdminFinancialReportDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Admin endpoint to view, update, or delete a financial report.
+    """
+    from .models import FinancialReport
+    from .serializers import FinancialReportSerializer
+    
+    queryset = FinancialReport.objects.all()
+    serializer_class = FinancialReportSerializer
+    permission_classes = [IsAdminUser]
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Get Financial Report Details",
+        operation_description="Retrieve detailed information about a specific financial report.",
+        tags=['Admin - Financial Reports'],
+        responses={
+            200: FinancialReportSerializer,
+            404: 'Not Found'
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Update Financial Report",
+        operation_description="Update report title, description, or mark as public/private. Document can also be replaced.",
+        tags=['Admin - Financial Reports'],
+        responses={
+            200: FinancialReportSerializer,
+            400: 'Bad Request',
+            404: 'Not Found'
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Partial Update Financial Report",
+        tags=['Admin - Financial Reports'],
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+    
+    @swagger_auto_schema(
+        operation_summary="[ADMIN] Delete Financial Report",
+        operation_description="Permanently delete a financial report and its document.",
+        tags=['Admin - Financial Reports'],
+        responses={
+            204: 'No Content - Successfully deleted',
+            404: 'Not Found'
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)
+
+
+class PublicFinancialReportView(generics.RetrieveAPIView):
+    """
+    Public endpoint to view the currently published financial report.
+    Only shows the report marked as public.
+    """
+    from .models import FinancialReport
+    from .serializers import PublicFinancialReportSerializer
+    
+    serializer_class = PublicFinancialReportSerializer
+    permission_classes = []  # Public access
+    
+    @swagger_auto_schema(
+        operation_summary="Public Financial Report (Transparency)",
+        operation_description="""
+        View the current public financial report for community transparency.
+        
+        Returns the financial report that has been marked as public by admin.
+        This allows donors and community members to see how funds are being used.
+        """,
+        tags=['Public - Transparency'],
+        responses={
+            200: PublicFinancialReportSerializer,
+            404: 'Not Found - No public report available'
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        from .models import FinancialReport
+        
+        # Get the public report
+        public_report = FinancialReport.objects.filter(is_public=True).first()
+        
+        if not public_report:
+            return Response(
+                {'detail': 'No public financial report available at this time.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        serializer = self.get_serializer(public_report)
+        return Response(serializer.data)

@@ -27,6 +27,8 @@ class Base64AnyFileField(serializers.FileField):
         "jpg",
         "doc",
         "docx",
+        "xls",
+        "xlsx",
     ]
     MIME_TYPES = {
         "pdf": "application/pdf",
@@ -35,6 +37,8 @@ class Base64AnyFileField(serializers.FileField):
         "png": "image/png",
         "doc": "application/msword",
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "xls": "application/vnd.ms-excel",
+        "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     }
 
     # Standardized file size limits by document type (in bytes)

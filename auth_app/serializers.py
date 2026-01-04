@@ -105,8 +105,8 @@ class LoginSerializer(serializers.Serializer):
             raise InvalidCredentialsException()
         if not user.is_active:
             raise AccountInactiveException()
-        if not user.is_verified:
-            raise EmailNotVerifiedException()
+        # Allow login even if email not verified
+        # Frontend can check user.is_verified and show verification prompt
         return {'user': user}
 
 
@@ -324,3 +324,77 @@ class AdminBulkTimelineCreateSerializer(serializers.Serializer):
     """
     patient_profile_id = serializers.IntegerField()
     events = AdminTimelineEventSerializer(many=True)
+
+
+class FinancialReportSerializer(serializers.ModelSerializer):
+    """
+    Serializer for financial reports with base64 document upload.
+    """
+    from utils.base_64_serializer_field import Base64AnyFileField
+    
+    document = Base64AnyFileField(
+        allowed_types=['pdf', 'xlsx', 'xls', 'doc', 'docx'],
+        max_file_size=20 * 1024 * 1024,  # 20MB for financial documents
+        required=True
+    )
+    document_url = serializers.SerializerMethodField()
+    uploaded_by_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        from .models import FinancialReport
+        model = FinancialReport
+        fields = [
+            'id', 'title', 'description', 'document', 'document_url',
+            'is_public', 'uploaded_by', 'uploaded_by_name',
+            'uploaded_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'uploaded_by', 'uploaded_at', 'updated_at']
+    
+    def get_document_url(self, obj):
+        """Return full URL for the document"""
+        if obj.document:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.document.url)
+            return obj.document.url
+        return None
+    
+    def get_uploaded_by_name(self, obj):
+        """Return the name of the admin who uploaded"""
+        if obj.uploaded_by:
+            return obj.uploaded_by.get_full_name()
+        return None
+    
+    def validate(self, data):
+        """Validate document upload"""
+        document = data.get('document')
+        if not document:
+            raise serializers.ValidationError({'document': 'Financial report document is required'})
+        return data
+    
+    def create(self, validated_data):
+        # Set the uploaded_by to the current user
+        validated_data['uploaded_by'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class PublicFinancialReportSerializer(serializers.ModelSerializer):
+    """
+    Simplified serializer for public financial report viewing.
+    """
+    document_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        from .models import FinancialReport
+        model = FinancialReport
+        fields = ['id', 'title', 'description', 'document_url', 'uploaded_at']
+        read_only_fields = ['id', 'title', 'description', 'document_url', 'uploaded_at']
+    
+    def get_document_url(self, obj):
+        """Return full URL for the document"""
+        if obj.document:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.document.url)
+            return obj.document.url
+        return None

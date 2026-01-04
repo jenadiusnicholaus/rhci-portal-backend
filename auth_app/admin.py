@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import CustomUser
+from .models import CustomUser, FinancialReport
 from .lookups import CountryLookup
 
 
@@ -36,3 +36,18 @@ class CountryLookupAdmin(admin.ModelAdmin):
     search_fields = ['name', 'code']
     ordering = ['display_order', 'name']
     list_editable = ['display_order', 'is_active']
+
+
+@admin.register(FinancialReport)
+class FinancialReportAdmin(admin.ModelAdmin):
+    list_display = ['title', 'is_public', 'uploaded_by', 'uploaded_at']
+    list_filter = ['is_public', 'uploaded_at']
+    search_fields = ['title', 'description']
+    ordering = ['-uploaded_at']
+    readonly_fields = ['uploaded_at', 'updated_at']
+    
+    fieldsets = (
+        (None, {'fields': ('title', 'description', 'document')}),
+        ('Visibility', {'fields': ('is_public',)}),
+        ('Metadata', {'fields': ('uploaded_by', 'uploaded_at', 'updated_at')}),
+    )

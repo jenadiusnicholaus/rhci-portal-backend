@@ -67,3 +67,45 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     
     def __str__(self):
         return self.email
+
+
+class FinancialReport(models.Model):
+    """
+    Financial transparency reports that admin can upload.
+    One report can be marked as public for community viewing.
+    """
+    title = models.CharField(max_length=255, help_text="Report title (e.g., 'Q1 2026 Financial Report')")
+    description = models.TextField(blank=True, help_text="Brief description of the report")
+    document = models.FileField(
+        upload_to='financial_reports/',
+        help_text="Excel or PDF financial report document"
+    )
+    is_public = models.BooleanField(
+        default=False,
+        help_text="Mark as public for community transparency. Only one report can be public at a time."
+    )
+    
+    uploaded_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='uploaded_reports',
+        limit_choices_to={'user_type': 'ADMIN'}
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-uploaded_at']
+        verbose_name = 'Financial Report'
+        verbose_name_plural = 'Financial Reports'
+    
+    def __str__(self):
+        public_label = " [PUBLIC]" if self.is_public else ""
+        return f"{self.title}{public_label}"
+    
+    def save(self, *args, **kwargs):
+        # If this report is being marked as public, unmark all other reports
+        if self.is_public:
+            FinancialReport.objects.filter(is_public=True).exclude(pk=self.pk).update(is_public=False)
+        super().save(*args, **kwargs)
