@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification - RHCI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            overflow: hidden;
+            animation: slideIn 0.4s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .content {
+            padding: 60px 40px;
+            text-align: center;
+        }
+        
+        .icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+            animation: bounce 0.6s ease;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        
+        .success-icon { color: #10b981; }
+        .error-icon { color: #ef4444; }
+        
+        h1 {
+            font-size: 28px;
+            margin-bottom: 16px;
+            color: #1f2937;
+            font-weight: 600;
+        }
+        
+        p {
+            font-size: 16px;
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        
+        .email-display {
+            background: #f3f4f6;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 24px 0;
+            font-size: 15px;
+            color: #374151;
+            font-weight: 500;
+        }
+        
+        .button-group {
+            margin-top: 32px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        
+        .btn {
+            padding: 12px 28px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: #ffffff !important;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
+        }
+        
+        .btn-primary:link,
+        .btn-primary:visited,
+        .btn-primary:hover,
+        .btn-primary:active {
+            color: #ffffff !important;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        .error-box {
+            background: #fef2f2;
+            border-left: 3px solid #ef4444;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 24px 0;
+            text-align: left;
+        }
+        
+        .error-box p {
+            color: #7f1d1d;
+            font-size: 14px;
+            margin: 0;
+        }
+        
+        .footer {
+            background: #f9fafb;
+            padding: 20px;
+            text-align: center;
+            font-size: 13px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        @media (max-width: 600px) {
+            .content {
+                padding: 40px 24px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="content">
+            {% if success %}
+                <div class="icon success-icon">✓</div>
+                <h1>Email Verified</h1>
+                <p>Your account has been successfully activated.</p>
+                
+                <div class="email-display">
+                    {{ email }}
+                </div>
+                
+                <div class="button-group">
+                    <a href="https://rhci.co.tz/community/login" class="btn btn-primary">
+                        Login Now
+                    </a>
+                    <a href="https://rhci.co.tz" class="btn btn-secondary">
+                        Home
+                    </a>
+                </div>
+                
+            {% else %}
+                <div class="icon error-icon">✕</div>
+                <h1>Verification Failed</h1>
+                <p>We couldn't verify your email address.</p>
+                
+                <div class="error-box">
+                    <p>{{ error }}</p>
+                </div>
+                
+                <div class="button-group">
+                    <a href="https://rhci.co.tz/resend-verification" class="btn btn-primary">
+                        Resend Email
+                    </a>
+                    <a href="https://rhci.co.tz/contact" class="btn btn-secondary">
+                        Contact Us
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="footer">
+            &copy; 2026 Reiza Healthcare Initiative
+        </div>
+    </div>
+</body>
+</html>

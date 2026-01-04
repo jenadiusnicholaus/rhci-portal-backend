@@ -3,7 +3,10 @@ from .views import (
     LoginView, UserProfileView, CountryLookupListView, ExpenseTypeLookupListView,
     AdminExpenseTypeListCreateView, AdminExpenseTypeDetailView
 )
-from donor.views import DonorRegisterView, DonorProfileView
+from donor.views import (
+    DonorRegisterView, DonorProfileView,
+    DonorEmailVerificationView, DonorResendVerificationView
+)
 from patient.views import PatientRegisterView, PatientProfileView, RandomizedPatientListView
 
 urlpatterns = [
@@ -13,6 +16,10 @@ urlpatterns = [
     # ============ REGISTRATION ============
     path('register/donor/', DonorRegisterView.as_view(), name='donor_register'),
     path('register/patient/', PatientRegisterView.as_view(), name='patient_register'),
+    
+    # ============ EMAIL VERIFICATION ============
+    path('donor/verify-email/', DonorEmailVerificationView.as_view(), name='donor_verify_email'),
+    path('donor/resend-verification/', DonorResendVerificationView.as_view(), name='donor_resend_verification'),
     
     # ============ USER PROFILE (AUTHENTICATED) ============
     path('me/', UserProfileView.as_view(), name='user_profile'),

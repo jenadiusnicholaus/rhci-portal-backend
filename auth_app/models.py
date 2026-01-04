@@ -45,6 +45,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_patient_verified = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     
+    # Email verification fields
+    email_verification_token = models.CharField(max_length=255, blank=True, null=True, help_text="Token for email verification")
+    email_verification_sent_at = models.DateTimeField(blank=True, null=True, help_text="When verification email was sent")
+    
     date_joined = models.DateTimeField(default=timezone.now)
     
     objects = CustomUserManager()

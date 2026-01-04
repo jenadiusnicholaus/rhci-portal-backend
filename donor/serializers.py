@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from datetime import date
+from django.utils import timezone
 
 from auth_app.exceptions import (
     EmailAlreadyExistsException, PasswordTooShortException,
@@ -8,6 +9,7 @@ from auth_app.exceptions import (
     InvalidFileTypeException
 )
 from .models import DonorProfile
+from utils.email_verification import generate_verification_token, create_verification_token_hash
 
 User = get_user_model()
 
@@ -116,9 +118,23 @@ class DonorRegisterSerializer(serializers.ModelSerializer):
         return value
     
     def create(self, validated_data):
+        # Generate verification token
+        token = generate_verification_token()
+        token_hash = create_verification_token_hash(token)
+        
+        # Create user with verification token
         user = User.objects.create_user(
             **validated_data,
-            user_type='DONOR'
+            user_type='DONOR',
+            is_active=False,  # Inactive until email verified
+            is_verified=False,
+            email_verification_token=token_hash,
+            email_verification_sent_at=timezone.now()
         )
         # DonorProfile is auto-created by signal
+        
+        # Store plain token in context for view to send email
+        # (we don't store plain token in DB, only the hash)
+        self.context['verification_token'] = token
+        
         return user

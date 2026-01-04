@@ -5,6 +5,9 @@ from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.utils import timezone
+from django.conf import settings
+from django.shortcuts import render
+import logging
 
 from auth_app.models import CustomUser
 from auth_app.permissions import IsDonorOwner
@@ -20,6 +23,9 @@ from patient.serializers import (
     DonationSerializer,
     DonationDetailSerializer
 )
+from utils.email_verification import send_verification_email, verify_email_token, resend_verification_email
+
+logger = logging.getLogger(__name__)
 
 
 class DonorRegisterView(generics.CreateAPIView):
@@ -40,22 +46,214 @@ class DonorRegisterView(generics.CreateAPIView):
         **Process:**
         1. Creates user account with email/password
         2. Auto-creates donor profile
-        3. Account is inactive until email verification
+        3. Sends verification email to provided address
+        4. Account is inactive until email verification
         
         **After Registration:**
+        - Check email for verification link
+        - Click the link to activate account
         - Login with credentials to get JWT tokens
         - Complete profile via `/api/v1.0/auth/donor/profile/`
         """,
         responses={
             201: openapi.Response(
-                description="Donor registered successfully",
+                description="Donor registered successfully. Check email for verification link.",
                 schema=DonorRegisterSerializer
             ),
             400: "Validation error - check email uniqueness and password strength"
         }
     )
     def post(self, request, *args, **kwargs):
-        return super().post(request, *args, **kwargs)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        
+        # Get the verification token from serializer context
+        token = serializer.context.get('verification_token')
+        
+        # Build verification URL
+        # Frontend URL for email verification
+        frontend_url = request.build_absolute_uri('/api/v1.0/auth/donor/verify-email/')
+        verification_url = f"{frontend_url}?token={token}"
+        
+        # Send verification email
+        try:
+            logger.info(f"Attempting to send verification email to {user.email}")
+            send_verification_email(user, verification_url, user_type='donor')
+            logger.info(f"Verification email sent successfully to {user.email}")
+            message = "Registration successful. Please check your email to verify your account."
+        except Exception as e:
+            # Log error but don't fail registration
+            logger.error(f"Failed to send verification email to {user.email}: {str(e)}", exc_info=True)
+            message = f"Registration successful, but failed to send verification email. Error: {str(e)}"
+        
+        return Response({
+            "id": user.id,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "message": message
+        }, status=status.HTTP_201_CREATED)
+
+
+class DonorEmailVerificationView(APIView):
+    """
+    Handle email verification link clicks for donor registration
+    """
+    permission_classes = [AllowAny]
+    
+    @swagger_auto_schema(
+        tags=['Authentication & Registration'],
+        operation_summary="Verify Donor Email",
+        operation_description="""
+        Verify donor email address using the token sent via email.
+        
+        **Process:**
+        1. User clicks verification link in email
+        2. Token is validated
+        3. Account is activated
+        4. User can now login
+        
+        **Query Parameters:**
+        - token: Verification token from email
+        """,
+        manual_parameters=[
+            openapi.Parameter(
+                'token',
+                openapi.IN_QUERY,
+                description="Verification token from email",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="Email verified successfully",
+                examples={
+                    'application/json': {
+                        'message': 'Email verified successfully. You can now login.',
+                        'email': 'donor@example.com'
+                    }
+                }
+            ),
+            400: "Invalid or expired token"
+        }
+    )
+    def get(self, request):
+        token = request.query_params.get('token')
+        
+        if not token:
+            return render(request, 'emails/verification_result.html', {
+                'success': False,
+                'error': 'Verification token is required'
+            })
+        
+        # Find user by token hash
+        from utils.email_verification import create_verification_token_hash
+        token_hash = create_verification_token_hash(token)
+        
+        try:
+            user = CustomUser.objects.get(
+                email_verification_token=token_hash,
+                user_type='DONOR'
+            )
+        except CustomUser.DoesNotExist:
+            return render(request, 'emails/verification_result.html', {
+                'success': False,
+                'error': 'Invalid verification token'
+            })
+        
+        # Verify the token
+        success, message = verify_email_token(user, token)
+        
+        if success:
+            return render(request, 'emails/verification_result.html', {
+                'success': True,
+                'email': user.email
+            })
+        else:
+            return render(request, 'emails/verification_result.html', {
+                'success': False,
+                'error': message
+            })
+
+
+class DonorResendVerificationView(APIView):
+    """
+    Resend verification email for donor
+    """
+    permission_classes = [AllowAny]
+    
+    @swagger_auto_schema(
+        tags=['Authentication & Registration'],
+        operation_summary="Resend Donor Verification Email",
+        operation_description="""
+        Resend verification email if the previous one expired or was not received.
+        
+        **Process:**
+        1. Provide email address
+        2. New verification email is sent (with rate limiting)
+        
+        **Rate Limiting:**
+        - Can only resend after 2 minutes from last send
+        """,
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['email'],
+            properties={
+                'email': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    format='email',
+                    description='Email address of the donor account'
+                )
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                description="Verification email sent",
+                examples={
+                    'application/json': {
+                        'message': 'Verification email sent successfully'
+                    }
+                }
+            ),
+            400: "Email already verified or rate limit exceeded",
+            404: "User not found"
+        }
+    )
+    def post(self, request):
+        email = request.data.get('email')
+        
+        if not email:
+            return Response(
+                {'error': 'Email is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user = CustomUser.objects.get(email=email, user_type='DONOR')
+        except CustomUser.DoesNotExist:
+            return Response(
+                {'error': 'Donor account not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Build verification URL
+        frontend_url = request.build_absolute_uri('/api/v1.0/auth/donor/verify-email/')
+        
+        # Resend verification email
+        success, message = resend_verification_email(user, frontend_url, user_type='donor')
+        
+        if success:
+            return Response(
+                {'message': message},
+                status=status.HTTP_200_OK
+            )
+        else:
+            return Response(
+                {'error': message},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class DonorProfileView(generics.RetrieveUpdateAPIView):
