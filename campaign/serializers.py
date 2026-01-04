@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from datetime import date
 from .models import PaymentMethod, Campaign, CampaignPhoto, CampaignUpdate
+from patient.models import PatientProfile
 
 
 class PaymentMethodSerializer(serializers.ModelSerializer):
@@ -43,12 +44,18 @@ class CampaignCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating campaigns"""
     photos = CampaignPhotoSerializer(many=True, read_only=True)
     goal_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    patients = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=PatientProfile.objects.filter(status='PUBLISHED'),
+        required=False,
+        help_text="List of patient IDs (required if is_general_fund is False)"
+    )
     
     class Meta:
         model = Campaign
         fields = [
             'id', 'title', 'description', 'goal_amount', 
-            'end_date', 'photos'
+            'end_date', 'is_general_fund', 'patients', 'photos'
         ]
         read_only_fields = ['id']
     
@@ -61,6 +68,25 @@ class CampaignCreateSerializer(serializers.ModelSerializer):
         if value < date.today():
             raise serializers.ValidationError("End date cannot be in the past")
         return value
+    
+    def validate(self, data):
+        """Validate campaign data"""
+        is_general_fund = data.get('is_general_fund', False)
+        patients = data.get('patients', [])
+        
+        # If not general fund, at least one patient must be selected
+        if not is_general_fund and not patients:
+            raise serializers.ValidationError({
+                'patients': 'Patient-specific campaign must have at least one patient selected.'
+            })
+        
+        # If general fund, patients should be empty
+        if is_general_fund and patients:
+            raise serializers.ValidationError({
+                'patients': 'General fund campaigns cannot have specific patients selected.'
+            })
+        
+        return data
 
 
 class CampaignSerializer(serializers.ModelSerializer):
@@ -75,6 +101,7 @@ class CampaignSerializer(serializers.ModelSerializer):
     funding_progress = serializers.ReadOnlyField()
     remaining_amount = serializers.ReadOnlyField()
     is_funded = serializers.ReadOnlyField()
+    patients = serializers.SerializerMethodField()
     
     class Meta:
         model = Campaign
@@ -82,7 +109,8 @@ class CampaignSerializer(serializers.ModelSerializer):
             'id', 'launcher', 'launcher_name', 'launcher_email',
             'title', 'description', 'goal_amount', 'raised_amount',
             'funding_progress', 'remaining_amount', 'is_funded',
-            'end_date', 'status', 'payment_methods', 'photos', 'updates',
+            'end_date', 'status', 'is_general_fund', 'patients',
+            'payment_methods', 'photos', 'updates',
             'created_at', 'updated_at'
         ]
         read_only_fields = [
@@ -92,6 +120,23 @@ class CampaignSerializer(serializers.ModelSerializer):
     
     def get_launcher_name(self, obj):
         return obj.launcher.get_full_name() or obj.launcher.email
+    
+    def get_patients(self, obj):
+        """Return patient details for campaign"""
+        if obj.is_general_fund:
+            return []
+        
+        patients_data = []
+        for patient in obj.patients.all():
+            patients_data.append({
+                'id': patient.id,
+                'full_name': patient.full_name,
+                'photo_url': patient.photo.url if patient.photo else None,
+                'diagnosis': patient.diagnosis,
+                'total_cost_usd': str(patient.total_cost_usd),
+                'amount_raised_usd': str(patient.amount_raised_usd)
+            })
+        return patients_data
 
 
 class CampaignDetailSerializer(serializers.ModelSerializer):

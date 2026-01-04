@@ -52,7 +52,7 @@ class PublicCampaignListView(generics.ListAPIView):
         return super().get(request, *args, **kwargs)
     
     def get_queryset(self):
-        return Campaign.objects.filter(status='ACTIVE').prefetch_related('photos', 'payment_methods')
+        return Campaign.objects.filter(status='ACTIVE').prefetch_related('photos', 'payment_methods', 'patients')
 
 
 class PublicCampaignDetailView(generics.RetrieveAPIView):
@@ -89,7 +89,7 @@ class PublicCampaignDetailView(generics.RetrieveAPIView):
         return super().get(request, *args, **kwargs)
     
     def get_queryset(self):
-        return Campaign.objects.filter(status='ACTIVE').prefetch_related('photos', 'payment_methods', 'updates')
+        return Campaign.objects.filter(status='ACTIVE').prefetch_related('photos', 'payment_methods', 'patients', 'updates')
 
 
 # ============ CAMPAIGN LAUNCHER VIEWS ============
@@ -120,7 +120,7 @@ class MyCampaignsView(generics.ListAPIView):
         return super().get(request, *args, **kwargs)
     
     def get_queryset(self):
-        return Campaign.objects.filter(launcher=self.request.user).prefetch_related('photos', 'payment_methods')
+        return Campaign.objects.filter(launcher=self.request.user).prefetch_related('photos', 'payment_methods', 'patients')
 
 
 class CreateCampaignView(generics.CreateAPIView):
@@ -318,7 +318,7 @@ class AdminCampaignListView(generics.ListAPIView):
     """
     serializer_class = CampaignDetailSerializer
     permission_classes = [IsAdminUser]
-    queryset = Campaign.objects.all().prefetch_related('photos', 'payment_methods').order_by('-created_at')
+    queryset = Campaign.objects.all().prefetch_related('photos', 'payment_methods', 'patients').order_by('-created_at')
     
     @swagger_auto_schema(
         tags=['Admin - Campaigns'],
@@ -361,7 +361,7 @@ class AdminCampaignDetailView(generics.RetrieveUpdateAPIView):
     """
     serializer_class = CampaignDetailSerializer
     permission_classes = [IsAdminUser]
-    queryset = Campaign.objects.all().prefetch_related('photos', 'payment_methods')
+    queryset = Campaign.objects.all().prefetch_related('photos', 'payment_methods', 'patients')
     lookup_field = 'id'
     
     @swagger_auto_schema(

@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from decimal import Decimal
+from patient.models import PatientProfile
 
 
 class PaymentMethod(models.Model):
@@ -95,6 +96,18 @@ class Campaign(models.Model):
         help_text="Campaign story/description"
     )
     
+    # Campaign Type: General Fund or Patient-Specific
+    is_general_fund = models.BooleanField(
+        default=False,
+        help_text="True if campaign is for general organization fund, False if for specific patients"
+    )
+    patients = models.ManyToManyField(
+        'patient.PatientProfile',
+        related_name='campaigns',
+        blank=True,
+        help_text="Patients benefiting from this campaign (empty if general fund)"
+    )
+    
     # Funding
     goal_amount = models.DecimalField(
         max_digits=10,
@@ -167,6 +180,17 @@ class Campaign(models.Model):
     
     def __str__(self):
         return f"{self.title} - {self.launcher.email}"
+    
+    def clean(self):
+        """Validate campaign data"""
+        from django.core.exceptions import ValidationError
+        
+        # If not general fund, must have at least one patient
+        if not self.is_general_fund and self.pk:
+            if not self.patients.exists():
+                raise ValidationError({
+                    'patients': 'Patient-specific campaign must have at least one patient selected.'
+                })
     
     @property
     def funding_progress(self):

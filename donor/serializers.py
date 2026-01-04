@@ -66,6 +66,9 @@ class PublicDonorProfileSerializer(serializers.ModelSerializer):
     age = serializers.ReadOnlyField()
     country = CountryLookupSerializer(source='country_fk', read_only=True)
     photo_url = serializers.SerializerMethodField()
+    donations = serializers.SerializerMethodField()
+    total_donated = serializers.SerializerMethodField()
+    donation_count = serializers.SerializerMethodField()
     
     def get_photo_url(self, obj):
         """Return full URL for donor photo"""
@@ -76,11 +79,72 @@ class PublicDonorProfileSerializer(serializers.ModelSerializer):
             return obj.photo.url
         return None
     
+    def get_donations(self, obj):
+        """Get list of completed donations with patient/campaign details"""
+        from .models import Donation
+        
+        # Get completed donations for this donor
+        donations = Donation.objects.filter(
+            donor=obj.user,
+            status='COMPLETED',
+            is_anonymous=False  # Only show non-anonymous donations
+        ).select_related('patient').order_by('-completed_at')[:20]  # Limit to 20 most recent
+        
+        donations_list = []
+        for donation in donations:
+            donation_data = {
+                'id': donation.id,
+                'amount': str(donation.amount),
+                'currency': donation.currency,
+                'date': donation.completed_at or donation.created_at,
+                'message': donation.message if donation.message else None,
+            }
+            
+            # Add patient details if donation is to a specific patient
+            if donation.patient:
+                donation_data['patient'] = {
+                    'id': donation.patient.id,
+                    'full_name': donation.patient.full_name,
+                    'diagnosis': donation.patient.diagnosis,
+                    'photo_url': self.context.get('request').build_absolute_uri(donation.patient.photo.url) if donation.patient.photo and self.context.get('request') else None
+                }
+            else:
+                donation_data['patient'] = None
+                donation_data['donation_type'] = 'General Fund'
+            
+            donations_list.append(donation_data)
+        
+        return donations_list
+    
+    def get_total_donated(self, obj):
+        """Calculate total amount donated (completed donations only)"""
+        from .models import Donation
+        from django.db.models import Sum
+        
+        total = Donation.objects.filter(
+            donor=obj.user,
+            status='COMPLETED',
+            is_anonymous=False
+        ).aggregate(total=Sum('amount'))['total']
+        
+        return str(total) if total else "0.00"
+    
+    def get_donation_count(self, obj):
+        """Count of completed donations"""
+        from .models import Donation
+        
+        return Donation.objects.filter(
+            donor=obj.user,
+            status='COMPLETED',
+            is_anonymous=False
+        ).count()
+    
     class Meta:
         model = DonorProfile
         fields = [
             'id', 'photo', 'photo_url', 'full_name', 'short_bio', 'country',
-            'website', 'age', 'workplace', 'created_at'
+            'website', 'age', 'workplace', 'created_at',
+            'total_donated', 'donation_count', 'donations'
         ]
         read_only_fields = fields
 
