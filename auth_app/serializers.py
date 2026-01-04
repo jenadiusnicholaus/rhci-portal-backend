@@ -119,6 +119,16 @@ class UserSerializer(serializers.ModelSerializer):
                   'is_verified', 'is_patient_verified', 'date_joined', 'profile_picture_url']
         read_only_fields = ['email', 'user_type', 'is_verified', 'date_joined']
     
+    def to_representation(self, instance):
+        """Customize fields based on user type"""
+        data = super().to_representation(instance)
+        
+        # Remove is_patient_verified for non-patient users
+        if instance.user_type != 'PATIENT':
+            data.pop('is_patient_verified', None)
+        
+        return data
+    
     def get_profile_picture_url(self, obj):
         """Return profile picture URL based on user type"""
         request = self.context.get('request')
@@ -239,14 +249,23 @@ class PatientProfileSerializer(serializers.ModelSerializer):
 class AdminPatientReviewSerializer(serializers.ModelSerializer):
     """
     Admin-only serializer for reviewing and editing patient profiles.
-    Allows admin to edit medical details, funding, and story.
+    Allows admin to edit medical details, funding, story, and photo.
     """
+    from utils.base_64_serializer_field import Base64AnyFileField
+    
+    photo = Base64AnyFileField(
+        allowed_types=['jpeg', 'jpg', 'png'],
+        max_file_size=5 * 1024 * 1024,  # 5MB
+        required=False,
+        allow_null=True
+    )
     user_email = serializers.EmailField(source='user.email', read_only=True)
     user_verified = serializers.BooleanField(source='user.is_verified', read_only=True)
     patient_verified = serializers.BooleanField(source='user.is_patient_verified', read_only=True)
     age = serializers.ReadOnlyField()
     funding_percentage = serializers.ReadOnlyField()
     funding_remaining = serializers.ReadOnlyField()
+    photo_url = serializers.SerializerMethodField()
     cost_breakdowns = TreatmentCostBreakdownSerializer(many=True, read_only=True)
     timeline_events = PatientTimelineSerializer(many=True, read_only=True)
     
@@ -254,7 +273,7 @@ class AdminPatientReviewSerializer(serializers.ModelSerializer):
         model = PatientProfile
         fields = [
             'id', 'user', 'user_email', 'user_verified', 'patient_verified',
-            'full_name', 'age', 'gender', 'country',
+            'photo', 'photo_url', 'full_name', 'age', 'gender', 'country',
             'short_description', 'long_story', 'medical_partner',
             'diagnosis', 'treatment_needed', 'treatment_date',
             'funding_required', 'funding_received', 'total_treatment_cost',
@@ -264,6 +283,15 @@ class AdminPatientReviewSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'user', 'age', 'funding_percentage', 'funding_remaining', 
                            'cost_breakdowns', 'timeline_events', 'created_at', 'updated_at']
+    
+    def get_photo_url(self, obj):
+        """Return full URL for patient photo"""
+        if obj.photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return None
 
 
 class AdminPatientApprovalSerializer(serializers.Serializer):
@@ -328,14 +356,23 @@ class AdminBulkTimelineCreateSerializer(serializers.Serializer):
 
 class FinancialReportSerializer(serializers.ModelSerializer):
     """
-    Serializer for financial reports with base64 document upload.
+    Serializer for financial reports with flexible document upload.
+    Supports: base64 upload, normal file upload, or Google Doc URL.
     """
     from utils.base_64_serializer_field import Base64AnyFileField
     
     document = Base64AnyFileField(
         allowed_types=['pdf', 'xlsx', 'xls', 'doc', 'docx'],
         max_file_size=20 * 1024 * 1024,  # 20MB for financial documents
-        required=True
+        required=False,
+        allow_null=True
+    )
+    google_doc_url = serializers.URLField(
+        max_length=500,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        help_text="Google Doc/Drive link (e.g., https://docs.google.com/...)"
     )
     document_url = serializers.SerializerMethodField()
     uploaded_by_name = serializers.SerializerMethodField()
@@ -345,13 +382,18 @@ class FinancialReportSerializer(serializers.ModelSerializer):
         model = FinancialReport
         fields = [
             'id', 'title', 'description', 'document', 'document_url',
-            'is_public', 'uploaded_by', 'uploaded_by_name',
+            'google_doc_url', 'is_public', 'uploaded_by', 'uploaded_by_name',
             'uploaded_at', 'updated_at'
         ]
         read_only_fields = ['id', 'uploaded_by', 'uploaded_at', 'updated_at']
     
     def get_document_url(self, obj):
-        """Return full URL for the document"""
+        """Return full URL for the document or Google Doc URL"""
+        # If Google Doc URL is provided, return that
+        if obj.google_doc_url:
+            return obj.google_doc_url
+        
+        # Otherwise return the uploaded document URL
         if obj.document:
             request = self.context.get('request')
             if request:
@@ -366,10 +408,24 @@ class FinancialReportSerializer(serializers.ModelSerializer):
         return None
     
     def validate(self, data):
-        """Validate document upload"""
+        """Validate that either document or google_doc_url is provided"""
         document = data.get('document')
-        if not document:
-            raise serializers.ValidationError({'document': 'Financial report document is required'})
+        google_doc_url = data.get('google_doc_url')
+        
+        # At least one must be provided
+        if not document and not google_doc_url:
+            raise serializers.ValidationError(
+                'Either document file or google_doc_url must be provided'
+            )
+        
+        # Validate Google Doc URL format if provided
+        if google_doc_url:
+            allowed_domains = ['docs.google.com', 'drive.google.com', 'sheets.google.com']
+            if not any(domain in google_doc_url for domain in allowed_domains):
+                raise serializers.ValidationError({
+                    'google_doc_url': 'Must be a valid Google Docs/Drive/Sheets URL'
+                })
+        
         return data
     
     def create(self, validated_data):
@@ -387,11 +443,16 @@ class PublicFinancialReportSerializer(serializers.ModelSerializer):
     class Meta:
         from .models import FinancialReport
         model = FinancialReport
-        fields = ['id', 'title', 'description', 'document_url', 'uploaded_at']
-        read_only_fields = ['id', 'title', 'description', 'document_url', 'uploaded_at']
+        fields = ['id', 'title', 'description', 'document_url', 'google_doc_url', 'uploaded_at']
+        read_only_fields = ['id', 'title', 'description', 'document_url', 'google_doc_url', 'uploaded_at']
     
     def get_document_url(self, obj):
-        """Return full URL for the document"""
+        """Return full URL for the document or Google Doc URL"""
+        # If Google Doc URL is provided, return that
+        if obj.google_doc_url:
+            return obj.google_doc_url
+        
+        # Otherwise return the uploaded document URL
         if obj.document:
             request = self.context.get('request')
             if request:

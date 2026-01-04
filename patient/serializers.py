@@ -468,7 +468,16 @@ class AdminPatientManagementSerializer(serializers.ModelSerializer):
 class AdminPatientCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for admin to create new patient profiles.
+    Supports base64 photo upload.
     """
+    from utils.base_64_serializer_field import Base64AnyFileField
+    
+    photo = Base64AnyFileField(
+        allowed_types=['jpeg', 'jpg', 'png'],
+        max_file_size=5 * 1024 * 1024,  # 5MB
+        required=False,
+        allow_null=True
+    )
     user_email = serializers.EmailField(write_only=True)
     user_first_name = serializers.CharField(write_only=True, max_length=150)
     user_last_name = serializers.CharField(write_only=True, max_length=150)

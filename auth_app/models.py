@@ -78,7 +78,15 @@ class FinancialReport(models.Model):
     description = models.TextField(blank=True, help_text="Brief description of the report")
     document = models.FileField(
         upload_to='financial_reports/',
-        help_text="Excel or PDF financial report document"
+        blank=True,
+        null=True,
+        help_text="Excel or PDF financial report document (optional if google_doc_url is provided)"
+    )
+    google_doc_url = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="Google Doc/Drive link to financial report (optional if document file is uploaded)"
     )
     is_public = models.BooleanField(
         default=False,
