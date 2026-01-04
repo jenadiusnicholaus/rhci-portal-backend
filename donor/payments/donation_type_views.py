@@ -64,10 +64,11 @@ class AnonymousOneTimePatientDonationView(APIView):
         """,
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=['patient_id', 'amount', 'anonymous_name', 'anonymous_email', 'payment_method', 'provider'],
+            required=['patient_id', 'patient_amount', 'anonymous_name', 'anonymous_email', 'payment_method', 'provider'],
             properties={
                 'patient_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='Patient ID (get from {{base_url}}/api/v1.0/auth/patients/discover/?page=4)'),
-                'amount': openapi.Schema(type=openapi.TYPE_NUMBER, example=50000.00, description='Amount in TZS (Tanzanian Shillings)'),
+                'patient_amount': openapi.Schema(type=openapi.TYPE_NUMBER, example=45000.00, description='Amount for patient treatment in TZS'),
+                'rhci_support_amount': openapi.Schema(type=openapi.TYPE_NUMBER, example=5000.00, description='Amount for RHCI operations (optional, defaults to 0)'),
                 'currency': openapi.Schema(
                     type=openapi.TYPE_STRING, 
                     example='TZS', 
@@ -94,13 +95,31 @@ class AnonymousOneTimePatientDonationView(APIView):
     def _process_donation(self, request, is_authenticated, is_recurring, require_patient):
         try:
             # Validate required fields
-            amount = request.data.get('amount')
+            patient_amount = request.data.get('patient_amount')
+            rhci_support_amount = request.data.get('rhci_support_amount', '0.00')
             payment_method = request.data.get('payment_method')
             provider = request.data.get('provider')
             patient_id = request.data.get('patient_id')
             
-            if not all([amount, payment_method, provider]):
-                return Response({'error': 'Required: amount, payment_method, provider'}, status=status.HTTP_400_BAD_REQUEST)
+            if not all([patient_amount, payment_method, provider]):
+                return Response({'error': 'Required: patient_amount, payment_method, provider'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate amounts
+            try:
+                patient_amt = Decimal(str(patient_amount))
+                rhci_amt = Decimal(str(rhci_support_amount))
+                
+                if patient_amt < 0:
+                    return Response({'error': 'patient_amount cannot be negative'}, status=status.HTTP_400_BAD_REQUEST)
+                if rhci_amt < 0:
+                    return Response({'error': 'rhci_support_amount cannot be negative'}, status=status.HTTP_400_BAD_REQUEST)
+                if patient_amt <= 0 and require_patient:
+                    return Response({'error': 'patient_amount must be greater than 0 for patient donations'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Calculate total
+                total_amount = patient_amt + rhci_amt
+            except (ValueError, TypeError):
+                return Response({'error': 'Invalid amount format'}, status=status.HTTP_400_BAD_REQUEST)
             
             if require_patient and not patient_id:
                 return Response({'error': 'patient_id is required for patient-specific donations'}, status=status.HTTP_400_BAD_REQUEST)
@@ -133,7 +152,9 @@ class AnonymousOneTimePatientDonationView(APIView):
             
             with db_transaction.atomic():
                 donation_data = {
-                    'amount': Decimal(str(amount)),
+                    'amount': total_amount,
+                    'patient_amount': patient_amt,
+                    'rhci_support_amount': rhci_amt if rhci_amt > 0 else None,
                     'currency': request.data.get('currency', 'TZS'),  # Default to TZS
                     'donation_type': donation_type,
                     'status': 'PENDING',
@@ -156,7 +177,7 @@ class AnonymousOneTimePatientDonationView(APIView):
                     donation_data['anonymous_email'] = request.data.get('anonymous_email')
                 
                 donation = Donation.objects.create(**donation_data)
-                logger.info(f"Created {'recurring' if is_recurring else 'one-time'} donation {donation.id}")
+                logger.info(f"Created {'recurring' if is_recurring else 'one-time'} donation {donation.id} - Patient: {patient_amt}, RHCI: {rhci_amt}, Total: {total_amount}")
             
             # Validate currency for AzamPay (only supports TZS)
             if donation.currency != 'TZS':
@@ -223,13 +244,13 @@ class AnonymousOneTimePatientDonationView(APIView):
                     donation.status = 'COMPLETED'
                     donation.completed_at = timezone.now()
                     
-                    # Update patient funding
+                    # Update patient funding with ONLY patient_amount (not total)
                     if patient:
-                        patient.funding_received += donation.amount
+                        patient.funding_received += donation.patient_amount
                         if patient.funding_received >= patient.funding_required:
                             patient.status = 'FULLY_FUNDED'
                         patient.save()
-                        logger.info(f"🎉 Sandbox auto-complete: Donation {donation.id} completed, patient {patient.id} funding: {patient.funding_received}/{patient.funding_required}")
+                        logger.info(f"🎉 Sandbox auto-complete: Donation {donation.id} completed, patient {patient.id} funding: {patient.funding_received}/{patient.funding_required} (patient_amount: {donation.patient_amount}, rhci: {donation.rhci_support_amount or 0})")
                     else:
                         logger.info(f"🎉 Sandbox auto-complete: Organization donation {donation.id} completed")
                 
@@ -246,6 +267,8 @@ class AnonymousOneTimePatientDonationView(APIView):
                         'id': donation.id,
                         'status': donation.status,
                         'amount': str(donation.amount),
+                        'patient_amount': str(donation.patient_amount),
+                        'rhci_support_amount': str(donation.rhci_support_amount or Decimal('0.00')),
                         'patient_id': patient.id if patient else None,
                         'patient_name': patient.full_name if patient else "General Organization",
                         'donation_type': donation_type,

@@ -207,11 +207,14 @@ class AzamPayCallbackView(APIView):
                     # Save donation first
                     donation.save()
                     
-                    # Update patient funding if applicable
+                    # Update patient funding if applicable - USE ONLY PATIENT_AMOUNT
                     if donation.patient:
                         patient = donation.patient
                         old_funding = patient.funding_received
-                        patient.funding_received += donation.amount
+                        
+                        # CRITICAL: Use patient_amount only (not total amount)
+                        patient_contribution = donation.patient_amount or Decimal('0.00')
+                        patient.funding_received += patient_contribution
                         
                         # Calculate funding percentage
                         funding_percentage = (patient.funding_received / patient.funding_required * 100) if patient.funding_required > 0 else 0
@@ -224,13 +227,17 @@ class AzamPayCallbackView(APIView):
                         
                         logger.info(f"✅ Patient {patient.id} funding updated:")
                         logger.info(f"   - Previous: ${old_funding:,.2f}")
-                        logger.info(f"   - Added: ${donation.amount:,.2f}")
+                        logger.info(f"   - Patient Amount Added: ${patient_contribution:,.2f}")
+                        logger.info(f"   - RHCI Support: ${donation.rhci_support_amount or Decimal('0.00'):,.2f}")
+                        logger.info(f"   - Total Transaction: ${donation.amount:,.2f}")
                         logger.info(f"   - Current: ${patient.funding_received:,.2f} / ${patient.funding_required:,.2f}")
                         logger.info(f"   - Percentage: {funding_percentage:.1f}%")
                         logger.info(f"   - Status: {patient.status}")
                     
                     logger.info(f"✅ Donation {donation.id} completed successfully")
-                    logger.info(f"   - Amount: ${donation.amount}")
+                    logger.info(f"   - Total Amount: ${donation.amount}")
+                    logger.info(f"   - Patient Amount: ${donation.patient_amount or Decimal('0.00')}")
+                    logger.info(f"   - RHCI Support: ${donation.rhci_support_amount or Decimal('0.00')}")
                     logger.info(f"   - Payment Method: {donation.payment_method}")
                     logger.info(f"   - Transaction ID: {transaction_id}")
                     logger.info(f"   - Provider: {provider}")

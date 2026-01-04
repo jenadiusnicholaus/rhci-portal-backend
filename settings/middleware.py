@@ -73,24 +73,26 @@ class RequestLoggingMiddleware:
         return ip
     
     def _log_request_body(self, request):
-        """Log request body (safely)"""
+        """Log request body (safely) - Skip to avoid consuming the stream"""
         try:
             content_type = request.META.get('CONTENT_TYPE', '').lower()
             
+            # Don't log multipart/form-data bodies (file uploads, etc.)
+            if 'multipart/form-data' in content_type:
+                logger.info(f"  Request Body: <multipart form data - not logged>")
+                return
+            
+            # Don't read request.body directly as it consumes the stream
+            # DRF will parse it later
             if 'application/json' in content_type:
-                if hasattr(request, 'body') and request.body:
-                    body = json.loads(request.body.decode('utf-8'))
-                    # Mask sensitive fields
-                    body = self._mask_sensitive_data(body)
-                    logger.info(f"  Request Body: {json.dumps(body, indent=2)}")
-            elif 'multipart/form-data' in content_type:
-                logger.info(f"  Request Body: <multipart form data>")
+                logger.info(f"  Request Body: <JSON data - will be parsed by DRF>")
             elif request.POST:
+                # For form-encoded data, use POST dict (safe to read)
                 post_data = dict(request.POST)
                 post_data = self._mask_sensitive_data(post_data)
                 logger.info(f"  POST Data: {post_data}")
         except Exception as e:
-            logger.warning(f"  Could not parse request body: {e}")
+            logger.warning(f"  Could not log request body: {e}")
     
     def _mask_sensitive_data(self, data):
         """Mask sensitive fields like passwords, tokens, etc."""
@@ -213,12 +215,9 @@ class ErrorLoggingMiddleware:
             if request.GET:
                 logger.error(f"  Query Params: {dict(request.GET)}")
             
-            if hasattr(request, 'body') and request.body and request.method in ['POST', 'PUT', 'PATCH']:
-                try:
-                    body = json.loads(request.body.decode('utf-8'))
-                    logger.error(f"  Request Body: {json.dumps(body, indent=2)}")
-                except:
-                    logger.error(f"  Request Body: {request.body.decode('utf-8')[:500]}")
+            # Don't read request.body as it may already be consumed
+            if request.method in ['POST', 'PUT', 'PATCH']:
+                logger.error(f"  Request Body: <data sent in {request.content_type}>")
             
             # Log response content
             if hasattr(response, 'content'):

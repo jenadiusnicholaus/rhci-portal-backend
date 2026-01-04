@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate, get_user_model
 from datetime import date
+from decimal import Decimal
 from utils.base_64_serializer_field import Base64AnyFileField
 
 from auth_app.exceptions import (
@@ -648,8 +649,22 @@ class DonationCreateSerializer(serializers.Serializer):
     # Patient selection (optional)
     patient_id = serializers.IntegerField(required=False, allow_null=True, help_text="Specific patient to donate to, or null for general donation")
     
-    # Donation details
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=1.00)
+    # Donation details - SPLIT AMOUNTS
+    patient_amount = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        min_value=0.00,
+        help_text="Amount allocated to patient (required if patient selected)"
+    )
+    rhci_support_amount = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        min_value=0.00,
+        required=False,
+        allow_null=True,
+        default=Decimal('0.00'),
+        help_text="Optional amount to support RHCI operations"
+    )
     currency = serializers.ChoiceField(
         choices=[('USD', 'US Dollar'), ('EUR', 'Euro'), ('GBP', 'British Pound'), 
                  ('TZS', 'Tanzanian Shilling'), ('KES', 'Kenyan Shilling'), ('UGX', 'Ugandan Shilling'),
@@ -672,7 +687,41 @@ class DonationCreateSerializer(serializers.Serializer):
     payment_method = serializers.CharField(required=False, allow_blank=True)
     
     def validate(self, data):
-        """Validate donation data"""
+        """Validate donation data and calculate total"""
+        from decimal import Decimal
+        
+        # Get amounts
+        patient_amount = data.get('patient_amount', Decimal('0.00'))
+        rhci_support_amount = data.get('rhci_support_amount') or Decimal('0.00')
+        
+        # Validate patient_amount
+        if patient_amount < 0:
+            raise serializers.ValidationError({
+                'patient_amount': 'Patient amount cannot be negative'
+            })
+        
+        # Validate rhci_support_amount
+        if rhci_support_amount < 0:
+            raise serializers.ValidationError({
+                'rhci_support_amount': 'RHCI support amount cannot be negative'
+            })
+        
+        # Validate total is greater than 0
+        total_amount = patient_amount + rhci_support_amount
+        if total_amount <= 0:
+            raise serializers.ValidationError({
+                'patient_amount': 'Total donation amount must be greater than 0'
+            })
+        
+        # If patient selected, patient_amount must be > 0
+        if data.get('patient_id') and patient_amount <= 0:
+            raise serializers.ValidationError({
+                'patient_amount': 'Patient amount must be greater than 0 when patient is selected'
+            })
+        
+        # Calculate and store total amount
+        data['amount'] = total_amount
+        
         # If anonymous, require either name or email
         if data.get('is_anonymous', False):
             if not data.get('anonymous_name') and not data.get('anonymous_email'):
@@ -687,13 +736,6 @@ class DonationCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"patient_id": "Patient not found"})
         
         return data
-    
-    def validate_amount(self, value):
-        """Ensure amount is positive"""
-        if value <= 0:
-            raise serializers.ValidationError("Donation amount must be greater than 0")
-        return value
-
 
 class DonationSerializer(serializers.ModelSerializer):
     """
@@ -712,7 +754,8 @@ class DonationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'donor', 'donor_name', 'is_anonymous',
             'patient', 'patient_name',
-            'amount', 'currency', 'currency_display', 'donation_type', 'donation_type_display',
+            'amount', 'patient_amount', 'rhci_support_amount',
+            'currency', 'currency_display', 'donation_type', 'donation_type_display',
             'status', 'status_display',
             'message', 'dedication',
             'payment_method', 'transaction_id',

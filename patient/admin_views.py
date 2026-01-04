@@ -36,7 +36,7 @@ class AdminPatientListView(generics.ListAPIView):
     serializer_class = AdminPatientReviewSerializer
     permission_classes = [IsAdminUser]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['full_name', 'country', 'diagnosis', 'medical_partner']
+    search_fields = ['full_name', 'country_fk__name', 'diagnosis', 'medical_partner']
     ordering_fields = ['created_at', 'status', 'funding_percentage']
     ordering = ['-created_at']
     
@@ -587,7 +587,7 @@ class PublicPatientListView(generics.ListAPIView):
     serializer_class = PatientProfileSerializer
     permission_classes = []  # Public access
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['full_name', 'country', 'diagnosis', 'medical_partner']
+    search_fields = ['full_name', 'country_fk__name', 'diagnosis', 'medical_partner']
     ordering_fields = ['created_at', 'funding_percentage']
     ordering = ['-created_at']
     

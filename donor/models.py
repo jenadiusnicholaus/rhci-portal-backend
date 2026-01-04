@@ -100,8 +100,25 @@ class Donation(models.Model):
     amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        help_text="Donation amount"
+        help_text="Total donation amount (patient_amount + rhci_support_amount)"
     )
+    
+    # Split donation amounts
+    patient_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text="Amount allocated to patient funding"
+    )
+    rhci_support_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        null=True,
+        blank=True,
+        help_text="Optional amount to support RHCI operations"
+    )
+    
     currency = models.CharField(
         max_length=3,
         choices=CURRENCY_CHOICES,
@@ -203,7 +220,29 @@ class Donation(models.Model):
             models.Index(fields=['donor', '-created_at']),
             models.Index(fields=['patient', '-created_at']),
             models.Index(fields=['transaction_id']),
+            models.Index(fields=['rhci_support_amount', 'status']),  # For filtering RHCI donations
         ]
+    
+    def clean(self):
+        """Validate donation amounts"""
+        from django.core.exceptions import ValidationError
+        
+        # Calculate expected total
+        patient_amt = self.patient_amount or Decimal('0.00')
+        rhci_amt = self.rhci_support_amount or Decimal('0.00')
+        calculated_total = patient_amt + rhci_amt
+        
+        # Validate total matches
+        if self.amount != calculated_total:
+            raise ValidationError({
+                'amount': f'Total amount ({self.amount}) must equal patient_amount ({patient_amt}) + rhci_support_amount ({rhci_amt})'
+            })
+        
+        # If patient is selected, patient_amount must be > 0
+        if self.patient and patient_amt <= 0:
+            raise ValidationError({
+                'patient_amount': 'Patient amount must be greater than 0 when patient is selected'
+            })
     
     def __str__(self):
         donor_name = self.get_donor_display_name()
