@@ -1157,7 +1157,8 @@ class PublicPatientDonorsListView(generics.ListAPIView):
                 'amount': donation.amount,
                 'donation_date': donation.created_at,
                 'message': donation.message,
-                'is_anonymous': donation.is_anonymous
+                'is_anonymous': donation.is_anonymous,
+                'donor_profile_id': None  # Will be set for authenticated donors
             }
             
             if donation.is_anonymous:
@@ -1169,6 +1170,7 @@ class PublicPatientDonorsListView(generics.ListAPIView):
                 # Authenticated donor
                 if donation.donor and hasattr(donation.donor, 'donor_profile'):
                     profile = donation.donor.donor_profile
+                    donor_info['donor_profile_id'] = profile.id  # Add donor profile ID
                     donor_info['donor_name'] = profile.full_name or f"{donation.donor.first_name} {donation.donor.last_name}".strip() or 'Donor'
                     
                     # Add photo if not private
