@@ -133,8 +133,8 @@ class CampaignSerializer(serializers.ModelSerializer):
                 'full_name': patient.full_name,
                 'photo_url': patient.photo.url if patient.photo else None,
                 'diagnosis': patient.diagnosis,
-                'total_cost_usd': str(patient.total_cost_usd),
-                'amount_raised_usd': str(patient.amount_raised_usd)
+                'total_cost_usd': str(patient.total_treatment_cost),
+                'amount_raised_usd': str(patient.funding_received)
             })
         return patients_data
 
