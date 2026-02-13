@@ -121,6 +121,15 @@ class PatientProfile(models.Model):
     @property
     def funding_percentage(self):
         if self.funding_required > 0:
+            percentage = round((self.funding_received / self.funding_required) * 100, 2)
+            # Cap at 100% for display purposes (can be overfunded)
+            return min(percentage, 100.0)
+        return 0
+    
+    @property
+    def funding_percentage_raw(self):
+        """Raw percentage without cap (can exceed 100% for overfunded patients)"""
+        if self.funding_required > 0:
             return round((self.funding_received / self.funding_required) * 100, 2)
         return 0
     
@@ -132,7 +141,9 @@ class PatientProfile(models.Model):
     def funding_percentage_display(self):
         """Display funding percentage with appropriate precision"""
         percentage = self.funding_percentage
-        if percentage < 1:
+        if percentage >= 100:
+            return "Fully Funded"
+        elif percentage < 1:
             # Show 2 decimal places for small percentages (e.g., 0.01%)
             return f"{percentage:.2f}% of funding raised"
         else:
@@ -152,14 +163,17 @@ class PatientProfile(models.Model):
     @property
     def funding_summary(self):
         """Complete funding summary"""
+        is_fully_funded = self.funding_received >= self.funding_required
         return {
-            'percentage': self.funding_percentage,  # Keep decimal precision (e.g., 0.01, 42.5)
+            'percentage': self.funding_percentage,  # Capped at 100%
+            'percentage_raw': self.funding_percentage_raw,  # Can exceed 100% if overfunded
             'percentage_display': self.funding_percentage_display,
             'raised': float(self.funding_received),
             'raised_display': self.funding_raised_display,
             'remaining': float(self.funding_remaining),
             'remaining_display': self.funding_remaining_display,
             'required': float(self.funding_required),
+            'is_fully_funded': is_fully_funded,
             'summary_text': f"{self.funding_raised_display}, {self.funding_remaining_display}"
         }
     

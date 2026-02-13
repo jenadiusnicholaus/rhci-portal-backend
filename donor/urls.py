@@ -34,6 +34,22 @@ from .payments.callback_views import (
     CheckPaymentStatusView,
     ManualPaymentUpdateView,
 )
+from .payments.yellowcard_views import (
+    # Reference Data
+    YellowCardSupportedCountriesView,
+    YellowCardAutoConfigView,
+    YellowCardChannelsView,
+    YellowCardNetworksView,
+    YellowCardCountryConfigView,
+    # Donations (2 endpoints: anonymous and authenticated - same payload, patient_id optional)
+    YellowCardAnonymousDonationView,
+    YellowCardAuthenticatedDonationView,
+    # Webhook & Status
+    YellowCardCallbackView,
+    YellowCardPaymentStatusView,
+    # Testing
+    YellowCardSimulatePaymentView,
+)
 
 app_name = 'donor'
 
@@ -96,4 +112,26 @@ urlpatterns = [
     # ============ BILL PAY API (AZAM PAY - USSD/MOBILE MONEY) ============
     # Bill Pay API endpoints (called by AzamPay for USSD/Mobile Money donations)
     path('', include('donor.payments.billpay_urls')),
+    
+    # ============ YELLOW CARD PAYMENT GATEWAY ============
+    # Reference Data
+    path('yellowcard/countries/', YellowCardSupportedCountriesView.as_view(), name='yellowcard_countries'),
+    path('yellowcard/auto-config/', YellowCardAutoConfigView.as_view(), name='yellowcard_auto_config'),
+    path('yellowcard/channels/', YellowCardChannelsView.as_view(), name='yellowcard_channels'),
+    path('yellowcard/networks/', YellowCardNetworksView.as_view(), name='yellowcard_networks'),
+    path('yellowcard/config/<str:country>/', YellowCardCountryConfigView.as_view(), name='yellowcard_country_config'),
+    
+    # Donations (2 endpoints: anonymous and authenticated)
+    # Same payload - patient_id is optional (omit for organization donation)
+    path('yellowcard/donate/anonymous/', YellowCardAnonymousDonationView.as_view(), name='yellowcard_donate_anonymous'),
+    path('yellowcard/donate/', YellowCardAuthenticatedDonationView.as_view(), name='yellowcard_donate'),
+    
+    # Webhook (called by Yellow Card servers only)
+    path('yellowcard/callback/', YellowCardCallbackView.as_view(), name='yellowcard_callback'),
+    
+    # Check payment status
+    path('yellowcard/status/', YellowCardPaymentStatusView.as_view(), name='yellowcard_status'),
+    
+    # Testing only - simulate payment completion (disable in production!)
+    path('yellowcard/simulate/', YellowCardSimulatePaymentView.as_view(), name='yellowcard_simulate'),
 ]

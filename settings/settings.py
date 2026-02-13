@@ -373,6 +373,54 @@ AZAMPAY_BILLPAY_SECRET = config('AZAMPAY_BILLPAY_SECRET', default='your-hmac-sec
 USD_TO_TZS_RATE = config('USD_TO_TZS_RATE', default=2300, cast=float)
 
 # ============================================================================
+# YELLOW CARD PAYMENT GATEWAY CONFIGURATION
+# ============================================================================
+
+# Environment: 'sandbox' or 'production'
+YELLOW_CARD_ENVIRONMENT = config('YELLOW_CARD_ENVIRONMENT', default='sandbox')
+
+# API Credentials
+YELLOW_CARD_API_KEY = config('YELLOW_CARD_API_KEY', default='')
+YELLOW_CARD_API_SECRET = config('YELLOW_CARD_API_SECRET', default='')
+
+# ------------ CREDENTIALS BASED ON ENVIRONMENT ------------
+# Automatically selects sandbox or production credentials
+if YELLOW_CARD_ENVIRONMENT == 'sandbox':
+    YELLOW_CARD_API_KEY = config('YELLOW_CARD_SANDBOX_API_KEY', default='')
+    YELLOW_CARD_API_SECRET = config('YELLOW_CARD_SANDBOX_API_SECRET', default='')
+    YELLOW_CARD_BASE_URL = config('YELLOW_CARD_SANDBOX_URL', default='https://sandbox.api.yellowcard.io')
+    # Sandbox recipient (test data)
+    RHCI_RECIPIENT_NAME = config('RHCI_SANDBOX_RECIPIENT_NAME', default='Reiza Healthcare Initiative')
+    RHCI_RECIPIENT_PHONE = config('RHCI_SANDBOX_RECIPIENT_PHONE', default='+12222222222')
+    RHCI_RECIPIENT_EMAIL = config('RHCI_SANDBOX_RECIPIENT_EMAIL', default='reizahealthcareinitiative@gmail.com')
+    RHCI_RECIPIENT_COUNTRY = config('RHCI_SANDBOX_RECIPIENT_COUNTRY', default='US')
+    RHCI_RECIPIENT_ADDRESS = config('RHCI_SANDBOX_RECIPIENT_ADDRESS', default='123 Healthcare Drive, New York, NY 10001')
+    RHCI_RECIPIENT_DOB = config('RHCI_SANDBOX_RECIPIENT_DOB', default='01/01/1990')
+    RHCI_RECIPIENT_ID_NUMBER = config('RHCI_SANDBOX_RECIPIENT_ID_NUMBER', default='0123456789')
+    RHCI_RECIPIENT_ID_TYPE = config('RHCI_SANDBOX_RECIPIENT_ID_TYPE', default='license')
+else:
+    # Production credentials and recipient
+    YELLOW_CARD_API_KEY = config('YELLOW_CARD_PROD_API_KEY', default='')
+    YELLOW_CARD_API_SECRET = config('YELLOW_CARD_PROD_API_SECRET', default='')
+    YELLOW_CARD_BASE_URL = config('YELLOW_CARD_PROD_URL', default='https://api.yellowcard.io')
+    # Production recipient (real RHCI details)
+    RHCI_RECIPIENT_NAME = config('RHCI_PROD_RECIPIENT_NAME', default='Reiza Healthcare Initiative')
+    RHCI_RECIPIENT_PHONE = config('RHCI_PROD_RECIPIENT_PHONE', default='')
+    RHCI_RECIPIENT_EMAIL = config('RHCI_PROD_RECIPIENT_EMAIL', default='reizahealthcareinitiative@gmail.com')
+    RHCI_RECIPIENT_COUNTRY = config('RHCI_PROD_RECIPIENT_COUNTRY', default='TZ')
+    RHCI_RECIPIENT_ADDRESS = config('RHCI_PROD_RECIPIENT_ADDRESS', default='Dar es Salaam, Tanzania')
+    RHCI_RECIPIENT_DOB = config('RHCI_PROD_RECIPIENT_DOB', default='')
+    RHCI_RECIPIENT_ID_NUMBER = config('RHCI_PROD_RECIPIENT_ID_NUMBER', default='')
+    RHCI_RECIPIENT_ID_TYPE = config('RHCI_PROD_RECIPIENT_ID_TYPE', default='passport')
+
+# Timeout configuration (seconds)
+YELLOW_CARD_TIMEOUT_CONNECT = config('YELLOW_CARD_TIMEOUT_CONNECT', default=30, cast=int)
+YELLOW_CARD_TIMEOUT_READ = config('YELLOW_CARD_TIMEOUT_READ', default=60, cast=int)
+
+# Webhook security (optional - for verifying callbacks)
+YELLOW_CARD_WEBHOOK_SECRET = config('YELLOW_CARD_WEBHOOK_SECRET', default='')
+
+# ============================================================================
 # LOGGING CONFIGURATION
 # ============================================================================
 

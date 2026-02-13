@@ -152,7 +152,38 @@ class Donation(models.Model):
     payment_gateway = models.CharField(
         max_length=50,
         blank=True,
-        help_text="Payment gateway used (e.g., Stripe, PayPal, M-Pesa)"
+        help_text="Payment gateway used (e.g., Stripe, PayPal, M-Pesa, AZAMPAY, YELLOWCARD)"
+    )
+    gateway_reference = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="Payment gateway's reference ID (e.g., Yellow Card collection_id)"
+    )
+    
+    # Currency conversion tracking (for Yellow Card multi-currency)
+    amount_usd = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="USD equivalent value for RHCI reporting"
+    )
+    exchange_rate = models.DecimalField(
+        max_digits=12,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Exchange rate used (local currency to USD)"
+    )
+    rate_locked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When exchange rate was locked"
+    )
+    failure_reason = models.TextField(
+        blank=True,
+        help_text="Reason for payment failure (if any)"
     )
     
     # Optional fields
