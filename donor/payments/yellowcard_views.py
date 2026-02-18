@@ -516,7 +516,7 @@ class YellowCardDonationBaseView(APIView):
             channel_id = request.data.get('channel_id')
             network_id = request.data.get('network_id')  # Network ID from /config/
             network_name = request.data.get('network_name', '')  # Network name (e.g., "AIRTELMONEYTZ", "VODACOM", "KCB")
-            account_type = request.data.get('account_type', 'phone')  # 'phone' for mobile money, 'bank' for bank transfer
+            account_type = request.data.get('account_type', 'momo')  # 'momo' for mobile money, 'bank' for bank transfer
             message = request.data.get('message', '')
             
             # Convert to Decimal for calculations
@@ -604,8 +604,15 @@ class YellowCardDonationBaseView(APIView):
                 # For bank: use bank account number
                 account_number = bank_account_number.replace(' ', '').replace('-', '')
             else:
-                # For mobile money: use phone number (remove + prefix)
+                # For mobile money: use phone number in international format
+                # Remove +, spaces, hyphens
                 account_number = sender_phone.replace('+', '').replace(' ', '').replace('-', '')
+                # Validate: must be digits only and between 7-15 digits (E.164 standard)
+                if not account_number.isdigit() or not (7 <= len(account_number) <= 15):
+                    return Response({
+                        'success': False,
+                        'error': 'Invalid phone number format. Please use international format (e.g., +255712345678 or 255712345678)'
+                    }, status=status.HTTP_400_BAD_REQUEST)
             
             with db_transaction.atomic():
                 # Create donation record
@@ -814,7 +821,7 @@ class YellowCardAnonymousDonationView(YellowCardDonationBaseView):
         **Supported Currencies:** TZS, KES, NGN, UGX, GHS, ZAR, USD
         
         **Payment Types:**
-        - **Mobile Money** (`account_type: "phone"`): Requires `sender_phone`
+        - **Mobile Money** (`account_type: "momo"`): Requires `sender_phone`
         - **Bank Transfer** (`account_type: "bank"`): Requires `bank_account_number`
         
         **Donation Amounts:**
@@ -830,7 +837,7 @@ class YellowCardAnonymousDonationView(YellowCardDonationBaseView):
           "patient_id": 1,
           "patient_amount": 50000,
           "sender_phone": "+255712345678",
-          "account_type": "phone",
+          "account_type": "momo",
           ...
         }
         ```
@@ -860,7 +867,7 @@ class YellowCardAnonymousDonationView(YellowCardDonationBaseView):
                 'country': openapi.Schema(type=openapi.TYPE_STRING, example='TZ', description='Country code'),
                 'sender_name': openapi.Schema(type=openapi.TYPE_STRING, example='John Doe', description='Donor name'),
                 'sender_email': openapi.Schema(type=openapi.TYPE_STRING, example='john@example.com', description='Donor email (for receipt)'),
-                'account_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['phone', 'bank'], example='phone', description='Payment type: "phone" for mobile money, "bank" for bank transfer'),
+                'account_type': openapi.Schema(type=openapi.TYPE_STRING, enum=['momo', 'bank'], example='momo', description='Payment type: "momo" for mobile money, "bank" for bank transfer'),
                 'sender_phone': openapi.Schema(type=openapi.TYPE_STRING, example='+255712345678', description='Donor phone (required for mobile money)'),
                 'bank_account_number': openapi.Schema(type=openapi.TYPE_STRING, example='1234567890', description='Bank account number (required for bank transfer)'),
                 'bank_account_name': openapi.Schema(type=openapi.TYPE_STRING, example='John Doe', description='Bank account holder name (optional for bank transfer)'),
@@ -921,7 +928,7 @@ class YellowCardAuthenticatedDonationView(YellowCardDonationBaseView):
                 'channel_id': openapi.Schema(type=openapi.TYPE_STRING, description='Channel ID from /yellowcard/channels/'),
                 'network_id': openapi.Schema(type=openapi.TYPE_STRING, description='Network ID from /yellowcard/networks/'),
                 'network_name': openapi.Schema(type=openapi.TYPE_STRING, example='AIRTELMONEYTZ', description='Network name'),
-                'account_type': openapi.Schema(type=openapi.TYPE_STRING, example='phone', description='Account type (default: phone)'),
+                'account_type': openapi.Schema(type=openapi.TYPE_STRING, example='momo', description='Account type (default: momo)'),
                 'message': openapi.Schema(type=openapi.TYPE_STRING, example='Get well soon!', description='Optional message'),
             }
         ),

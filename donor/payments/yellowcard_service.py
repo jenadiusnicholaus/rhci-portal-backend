@@ -490,7 +490,7 @@ class YellowCardService:
             country: Country code (e.g., "TZ", "KE")
             account_number: Sender's phone/account number (e.g., "255712345678")
             network_id: Network ID from get_networks()
-            account_type: Account type from network (e.g., "phone")
+            account_type: Account type from network (e.g., "momo")
             recipient_name: Name of recipient (RHCI or donor name for records)
             recipient_phone: Recipient phone number
             recipient_country: Recipient country (default "US" for RHCI)
@@ -514,8 +514,13 @@ class YellowCardService:
         # Always call Yellow Card API (both sandbox and production)
         # Build source object (sender's mobile money details)
         # Per official Yellow Card example
+        # For momo: accountNumber must be in international format with + prefix (e.g., +255788811189)
+        formatted_account_number = account_number
+        if account_type == 'momo' and not account_number.startswith('+'):
+            formatted_account_number = '+' + account_number
+        
         source = {
-            "accountNumber": account_number,
+            "accountNumber": formatted_account_number,
             "accountType": account_type,
             "networkId": network_id
         }
