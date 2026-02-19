@@ -380,8 +380,9 @@ class CheckPaymentStatusView(APIView):
                                 # Update patient funding
                                 if donation.patient:
                                     patient = donation.patient
-                                    patient.funding_received += donation.amount
-                                    if patient.funding_received >= patient.funding_required:
+                                    patient_contribution = donation.patient_amount or Decimal('0.00')
+                                    patient.funding_received += patient_contribution
+                                    if patient.funding_required == 0 or patient.funding_received >= patient.funding_required:
                                         patient.status = 'FULLY_FUNDED'
                                     patient.save()
                                     logger.info(f"✅ Updated donation {donation.id} to COMPLETED, patient funding: {patient.funding_received}")

@@ -124,6 +124,9 @@ class PatientProfile(models.Model):
             percentage = round((self.funding_received / self.funding_required) * 100, 2)
             # Cap at 100% for display purposes (can be overfunded)
             return min(percentage, 100.0)
+        # No target set but funds received → 100%
+        if self.funding_received > 0:
+            return 100.0
         return 0
     
     @property
@@ -131,17 +134,25 @@ class PatientProfile(models.Model):
         """Raw percentage without cap (can exceed 100% for overfunded patients)"""
         if self.funding_required > 0:
             return round((self.funding_received / self.funding_required) * 100, 2)
+        if self.funding_received > 0:
+            return 100.0
         return 0
     
     @property
     def funding_remaining(self):
-        return self.funding_required - self.funding_received
+        remaining = self.funding_required - self.funding_received
+        # Never return negative — overfunded means 0 remaining
+        return max(remaining, 0)
     
     @property
     def funding_percentage_display(self):
         """Display funding percentage with appropriate precision"""
         percentage = self.funding_percentage
-        if percentage >= 100:
+        is_overfunded = self.funding_required > 0 and self.funding_received > self.funding_required
+        no_target = self.funding_required == 0 and self.funding_received > 0
+        if is_overfunded or no_target:
+            return "Overfunded"
+        elif percentage >= 100:
             return "Fully Funded"
         elif percentage < 1:
             # Show 2 decimal places for small percentages (e.g., 0.01%)
@@ -157,23 +168,34 @@ class PatientProfile(models.Model):
     
     @property
     def funding_remaining_display(self):
-        """Display as '$365 to go'"""
-        return f"${self.funding_remaining:,.0f} to go"
+        """Display as '$365 to go' or 'Overfunded by $X'"""
+        raw_remaining = self.funding_required - self.funding_received
+        if raw_remaining < 0:
+            return f"Overfunded by ${abs(raw_remaining):,.0f}"
+        elif raw_remaining == 0:
+            return "Fully Funded"
+        return f"${raw_remaining:,.0f} to go"
     
     @property
     def funding_summary(self):
         """Complete funding summary"""
-        is_fully_funded = self.funding_received >= self.funding_required
+        is_fully_funded = self.funding_received >= self.funding_required or (
+            self.funding_required == 0 and self.funding_received > 0
+        )
+        is_overfunded = self.funding_required > 0 and self.funding_received > self.funding_required
+        raw_remaining = self.funding_required - self.funding_received
         return {
             'percentage': self.funding_percentage,  # Capped at 100%
             'percentage_raw': self.funding_percentage_raw,  # Can exceed 100% if overfunded
             'percentage_display': self.funding_percentage_display,
             'raised': float(self.funding_received),
             'raised_display': self.funding_raised_display,
-            'remaining': float(self.funding_remaining),
+            'remaining': float(self.funding_remaining),  # Never negative
+            'remaining_raw': float(raw_remaining),  # Can be negative if overfunded
             'remaining_display': self.funding_remaining_display,
             'required': float(self.funding_required),
             'is_fully_funded': is_fully_funded,
+            'is_overfunded': is_overfunded,
             'summary_text': f"{self.funding_raised_display}, {self.funding_remaining_display}"
         }
     
