@@ -1017,6 +1017,7 @@ class YellowCardCallbackView(APIView):
             
             if donation:
                 # Update donation status
+                old_donation_status = donation.status
                 if result.get('success'):
                     donation.status = 'COMPLETED'
                     donation.completed_at = timezone.now()
@@ -1024,9 +1025,10 @@ class YellowCardCallbackView(APIView):
                         donation.amount_usd = Decimal(str(usd_amount))
                     
                     # Update patient funding with ONLY patient_amount (not RHCI support)
-                    if donation.patient:
+                    # Guard against double-counting if webhook fires twice
+                    if donation.patient and old_donation_status != 'COMPLETED':
                         donation.patient.funding_received += donation.patient_amount
-                        if donation.patient.funding_received >= donation.patient.funding_required:
+                        if donation.patient.funding_required == 0 or donation.patient.funding_received >= donation.patient.funding_required:
                             donation.patient.status = 'FULLY_FUNDED'
                         donation.patient.save()
                         logger.info(f"✅ Donation {donation.id} completed! Patient {donation.patient.id} funding: {donation.patient.funding_received}/{donation.patient.funding_required}")

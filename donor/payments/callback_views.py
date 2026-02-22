@@ -502,14 +502,15 @@ class ManualPaymentUpdateView(APIView):
                     
                     # Update patient funding if applicable
                     if donation.patient and old_status != 'COMPLETED':
+                        from decimal import Decimal
                         patient = donation.patient
-                        patient.funding_received += donation.amount
-                        patient.save()
+                        patient_contribution = donation.patient_amount or Decimal('0.00')
+                        patient.funding_received += patient_contribution
                         
                         # Check if fully funded
-                        if patient.funding_received >= patient.funding_required:
+                        if patient.funding_required == 0 or patient.funding_received >= patient.funding_required:
                             patient.status = 'FULLY_FUNDED'
-                            patient.save()
+                        patient.save()
                 
                 donation.save()
                 logger.info(f"🔧 Manual update: Donation {donation.id} status changed from {old_status} to {new_status}")
