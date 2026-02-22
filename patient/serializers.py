@@ -128,6 +128,7 @@ class PatientProfileSerializer(serializers.ModelSerializer):
     from auth_app.serializers import CountryLookupSerializer
     
     age = serializers.ReadOnlyField()
+    funding_received = serializers.ReadOnlyField(source='funding_received_actual')
     funding_percentage = serializers.ReadOnlyField()
     funding_remaining = serializers.ReadOnlyField()
     funding_percentage_display = serializers.ReadOnlyField()
@@ -346,6 +347,7 @@ class AdminPatientReviewSerializer(serializers.ModelSerializer):
     user_verified = serializers.BooleanField(source='user.is_verified', read_only=True)
     patient_verified = serializers.BooleanField(source='user.is_patient_verified', read_only=True)
     age = serializers.ReadOnlyField()
+    funding_received = serializers.ReadOnlyField(source='funding_received_actual')
     funding_percentage = serializers.ReadOnlyField()
     funding_remaining = serializers.ReadOnlyField()
     cost_breakdowns = TreatmentCostBreakdownSerializer(many=True, read_only=True)
@@ -426,6 +428,7 @@ class AdminPatientManagementSerializer(serializers.ModelSerializer):
     user_is_patient_verified = serializers.BooleanField(source='user.is_patient_verified', read_only=True)
     country_name = serializers.CharField(source='country_fk.name', read_only=True)
     age = serializers.ReadOnlyField()
+    funding_received = serializers.ReadOnlyField(source='funding_received_actual')
     funding_percentage = serializers.ReadOnlyField()
     funding_remaining = serializers.ReadOnlyField()
     photo_url = serializers.SerializerMethodField()

@@ -244,13 +244,11 @@ class AnonymousOneTimePatientDonationView(APIView):
                     donation.status = 'COMPLETED'
                     donation.completed_at = timezone.now()
                     
-                    # Update patient funding with ONLY patient_amount (not total)
                     if patient:
-                        patient.funding_received += donation.patient_amount
-                        if patient.funding_received >= patient.funding_required:
+                        if patient.funding_required == 0 or patient.funding_received >= patient.funding_required:
                             patient.status = 'FULLY_FUNDED'
                         patient.save()
-                        logger.info(f"🎉 Sandbox auto-complete: Donation {donation.id} completed, patient {patient.id} funding: {patient.funding_received}/{patient.funding_required} (patient_amount: {donation.patient_amount}, rhci: {donation.rhci_support_amount or 0})")
+                        logger.info(f"🎉 Sandbox auto-complete: Donation {donation.id} completed, patient {patient.id} funding: {patient.funding_received}/{patient.funding_required}")
                     else:
                         logger.info(f"🎉 Sandbox auto-complete: Organization donation {donation.id} completed")
                 

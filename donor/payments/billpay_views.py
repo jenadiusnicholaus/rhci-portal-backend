@@ -406,11 +406,8 @@ def payment_notification(request):
             
             logger.info(f"Created donation #{donation.id} (Receipt: {donation.receipt_number})")
             
-            # 4. Update patient funding
-            patient.funding_received += amount
-            
-            # Check if fully funded
-            if patient.funding_received >= patient.funding_required:
+            # 4. Update patient status based on computed funding_received
+            if patient.funding_required == 0 or patient.funding_received >= patient.funding_required:
                 patient.status = 'FULLY_FUNDED'
                 logger.info(f"Patient {patient.full_name} is now FULLY_FUNDED!")
             

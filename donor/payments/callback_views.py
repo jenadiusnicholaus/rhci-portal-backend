@@ -207,32 +207,13 @@ class AzamPayCallbackView(APIView):
                     # Save donation first
                     donation.save()
                     
-                    # Update patient funding if applicable - USE ONLY PATIENT_AMOUNT
+                    # Update patient status based on computed funding_received
                     if donation.patient:
                         patient = donation.patient
-                        old_funding = patient.funding_received
-                        
-                        # CRITICAL: Use patient_amount only (not total amount)
-                        patient_contribution = donation.patient_amount or Decimal('0.00')
-                        patient.funding_received += patient_contribution
-                        
-                        # Calculate funding percentage
-                        funding_percentage = (patient.funding_received / patient.funding_required * 100) if patient.funding_required > 0 else 0
-                        
-                        # Check if fully funded
-                        if patient.funding_received >= patient.funding_required:
+                        if patient.funding_required == 0 or patient.funding_received >= patient.funding_required:
                             patient.status = 'FULLY_FUNDED'
-                        
                         patient.save()
-                        
-                        logger.info(f"✅ Patient {patient.id} funding updated:")
-                        logger.info(f"   - Previous: ${old_funding:,.2f}")
-                        logger.info(f"   - Patient Amount Added: ${patient_contribution:,.2f}")
-                        logger.info(f"   - RHCI Support: ${donation.rhci_support_amount or Decimal('0.00'):,.2f}")
-                        logger.info(f"   - Total Transaction: ${donation.amount:,.2f}")
-                        logger.info(f"   - Current: ${patient.funding_received:,.2f} / ${patient.funding_required:,.2f}")
-                        logger.info(f"   - Percentage: {funding_percentage:.1f}%")
-                        logger.info(f"   - Status: {patient.status}")
+                        logger.info(f"✅ Patient {patient.id} funding: {patient.funding_received}/{patient.funding_required} ({patient.funding_percentage}%)")
                     
                     logger.info(f"✅ Donation {donation.id} completed successfully")
                     logger.info(f"   - Total Amount: ${donation.amount}")
@@ -377,11 +358,9 @@ class CheckPaymentStatusView(APIView):
                                 donation.completed_at = timezone.now()
                                 donation.save()
                                 
-                                # Update patient funding
+                                # Update patient status based on computed funding_received
                                 if donation.patient:
                                     patient = donation.patient
-                                    patient_contribution = donation.patient_amount or Decimal('0.00')
-                                    patient.funding_received += patient_contribution
                                     if patient.funding_required == 0 or patient.funding_received >= patient.funding_required:
                                         patient.status = 'FULLY_FUNDED'
                                     patient.save()
@@ -500,14 +479,9 @@ class ManualPaymentUpdateView(APIView):
                 if new_status == 'COMPLETED':
                     donation.completed_at = timezone.now()
                     
-                    # Update patient funding if applicable
+                    # Update patient status based on computed funding_received
                     if donation.patient and old_status != 'COMPLETED':
-                        from decimal import Decimal
                         patient = donation.patient
-                        patient_contribution = donation.patient_amount or Decimal('0.00')
-                        patient.funding_received += patient_contribution
-                        
-                        # Check if fully funded
                         if patient.funding_required == 0 or patient.funding_received >= patient.funding_required:
                             patient.status = 'FULLY_FUNDED'
                         patient.save()

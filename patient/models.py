@@ -119,37 +119,50 @@ class PatientProfile(models.Model):
         return 0
     
     @property
+    def funding_received_actual(self):
+        """Always computed from COMPLETED donations only — never stale."""
+        from django.db.models import Sum
+        from decimal import Decimal
+        total = self.donations.filter(status='COMPLETED').aggregate(
+            total=Sum('patient_amount')
+        )['total']
+        return total or Decimal('0.00')
+
+    @property
     def funding_percentage(self):
+        received = self.funding_received_actual
         if self.funding_required > 0:
-            percentage = round((self.funding_received / self.funding_required) * 100, 2)
+            percentage = round((received / self.funding_required) * 100, 2)
             # Cap at 100% for display purposes (can be overfunded)
             return min(percentage, 100.0)
         # No target set but funds received → 100%
-        if self.funding_received > 0:
+        if received > 0:
             return 100.0
         return 0
     
     @property
     def funding_percentage_raw(self):
         """Raw percentage without cap (can exceed 100% for overfunded patients)"""
+        received = self.funding_received_actual
         if self.funding_required > 0:
-            return round((self.funding_received / self.funding_required) * 100, 2)
-        if self.funding_received > 0:
+            return round((received / self.funding_required) * 100, 2)
+        if received > 0:
             return 100.0
         return 0
     
     @property
     def funding_remaining(self):
-        remaining = self.funding_required - self.funding_received
+        remaining = self.funding_required - self.funding_received_actual
         # Never return negative — overfunded means 0 remaining
         return max(remaining, 0)
     
     @property
     def funding_percentage_display(self):
         """Display funding percentage with appropriate precision"""
+        received = self.funding_received_actual
         percentage = self.funding_percentage
-        is_overfunded = self.funding_required > 0 and self.funding_received > self.funding_required
-        no_target = self.funding_required == 0 and self.funding_received > 0
+        is_overfunded = self.funding_required > 0 and received > self.funding_required
+        no_target = self.funding_required == 0 and received > 0
         if is_overfunded or no_target:
             return "Overfunded"
         elif percentage >= 100:
@@ -164,12 +177,12 @@ class PatientProfile(models.Model):
     @property
     def funding_raised_display(self):
         """Display as '$266 raised'"""
-        return f"${self.funding_received:,.0f} raised"
+        return f"${self.funding_received_actual:,.0f} raised"
     
     @property
     def funding_remaining_display(self):
         """Display as '$365 to go' or 'Overfunded by $X'"""
-        raw_remaining = self.funding_required - self.funding_received
+        raw_remaining = self.funding_required - self.funding_received_actual
         if raw_remaining < 0:
             return f"Overfunded by ${abs(raw_remaining):,.0f}"
         elif raw_remaining == 0:
@@ -179,16 +192,17 @@ class PatientProfile(models.Model):
     @property
     def funding_summary(self):
         """Complete funding summary"""
-        is_fully_funded = self.funding_received >= self.funding_required or (
-            self.funding_required == 0 and self.funding_received > 0
+        received = self.funding_received_actual
+        is_fully_funded = received >= self.funding_required or (
+            self.funding_required == 0 and received > 0
         )
-        is_overfunded = self.funding_required > 0 and self.funding_received > self.funding_required
-        raw_remaining = self.funding_required - self.funding_received
+        is_overfunded = self.funding_required > 0 and received > self.funding_required
+        raw_remaining = self.funding_required - received
         return {
             'percentage': self.funding_percentage,  # Capped at 100%
             'percentage_raw': self.funding_percentage_raw,  # Can exceed 100% if overfunded
             'percentage_display': self.funding_percentage_display,
-            'raised': float(self.funding_received),
+            'raised': float(received),
             'raised_display': self.funding_raised_display,
             'remaining': float(self.funding_remaining),  # Never negative
             'remaining_raw': float(raw_remaining),  # Can be negative if overfunded

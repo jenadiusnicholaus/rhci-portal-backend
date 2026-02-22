@@ -1,10 +1,8 @@
 from django.core.management.base import BaseCommand
-from django.db.models import Sum
-from decimal import Decimal
 
 
 class Command(BaseCommand):
-    help = 'Recalculate funding_received for all patients from completed donations'
+    help = 'Recalculate and fix patient status based on actual completed donations'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -20,7 +18,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         from patient.models import PatientProfile
-        from donor.models import Donation
 
         patient_id = options.get('patient_id')
         dry_run = options.get('dry_run')
@@ -31,22 +28,26 @@ class Command(BaseCommand):
 
         updated = 0
         for patient in patients:
-            actual_received = Donation.objects.filter(
-                patient=patient,
-                status='COMPLETED'
-            ).aggregate(total=Sum('patient_amount'))['total'] or Decimal('0.00')
+            # funding_received is now a computed property — always accurate
+            actual_received = patient.funding_received
+            should_be_funded = (
+                patient.funding_required == 0 and actual_received > 0
+            ) or (
+                patient.funding_required > 0 and actual_received >= patient.funding_required
+            )
+            correct_status = 'FULLY_FUNDED' if should_be_funded else patient.status
 
-            if patient.funding_received != actual_received:
-                self.stdout.write(
-                    f"Patient {patient.id} ({patient.full_name}): "
-                    f"funding_received {patient.funding_received} → {actual_received}"
-                )
+            self.stdout.write(
+                f"Patient {patient.id} ({patient.full_name}): "
+                f"funding_received={actual_received}, "
+                f"funding_required={patient.funding_required}, "
+                f"status={patient.status}"
+                + (f" → {correct_status}" if correct_status != patient.status else " ✓")
+            )
+
+            if correct_status != patient.status:
                 if not dry_run:
-                    patient.funding_received = actual_received
-                    if patient.funding_required == 0 and actual_received > 0:
-                        patient.status = 'FULLY_FUNDED'
-                    elif actual_received >= patient.funding_required > 0:
-                        patient.status = 'FULLY_FUNDED'
+                    patient.status = correct_status
                     patient.save()
                     updated += 1
 

@@ -735,10 +735,9 @@ class YellowCardDonationBaseView(APIView):
                         yc_status = final_status
                         message = 'Donation completed (sandbox auto-complete after timeout).'
                     
-                    # Update patient funding
+                    # Update patient status based on computed funding_received
                     if patient:
-                        patient.funding_received += donation.patient_amount
-                        if patient.funding_received >= patient.funding_required:
+                        if patient.funding_required == 0 or patient.funding_received >= patient.funding_required:
                             patient.status = 'FULLY_FUNDED'
                         patient.save()
                         logger.info(f"🎉 SANDBOX: Donation {donation.id} completed! Patient {patient.id} funding: {patient.funding_received}/{patient.funding_required}")
@@ -751,8 +750,7 @@ class YellowCardDonationBaseView(APIView):
                         donation.status = 'COMPLETED'
                         donation.completed_at = timezone.now()
                         if patient:
-                            patient.funding_received += donation.patient_amount
-                            if patient.funding_received >= patient.funding_required:
+                            if patient.funding_required == 0 or patient.funding_received >= patient.funding_required:
                                 patient.status = 'FULLY_FUNDED'
                             patient.save()
                             logger.info(f"🎉 Donation {donation.id} completed immediately!")
@@ -1024,10 +1022,8 @@ class YellowCardCallbackView(APIView):
                     if usd_amount:
                         donation.amount_usd = Decimal(str(usd_amount))
                     
-                    # Update patient funding with ONLY patient_amount (not RHCI support)
-                    # Guard against double-counting if webhook fires twice
+                    # Update patient status based on computed funding_received
                     if donation.patient and old_donation_status != 'COMPLETED':
-                        donation.patient.funding_received += donation.patient_amount
                         if donation.patient.funding_required == 0 or donation.patient.funding_received >= donation.patient.funding_required:
                             donation.patient.status = 'FULLY_FUNDED'
                         donation.patient.save()
@@ -1232,11 +1228,10 @@ class YellowCardSimulatePaymentView(APIView):
             donation.status = 'COMPLETED'
             donation.completed_at = timezone.now()
             
-            # Update patient funding
+            # Update patient status based on computed funding_received
             if donation.patient:
                 patient = donation.patient
-                patient.funding_received += donation.patient_amount
-                if patient.funding_received >= patient.funding_required:
+                if patient.funding_required == 0 or patient.funding_received >= patient.funding_required:
                     patient.status = 'FULLY_FUNDED'
                 patient.save()
                 logger.info(f"🎉 Patient {patient.id} funding updated: {patient.funding_received}/{patient.funding_required}")
