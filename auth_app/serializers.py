@@ -205,6 +205,7 @@ class PatientTimelineSerializer(serializers.ModelSerializer):
 
 class PatientProfileSerializer(serializers.ModelSerializer):
     age = serializers.ReadOnlyField()
+    funding_received = serializers.ReadOnlyField(source='funding_received_actual')
     funding_percentage = serializers.ReadOnlyField()
     funding_remaining = serializers.ReadOnlyField()
     funding_percentage_display = serializers.ReadOnlyField()
@@ -263,6 +264,7 @@ class AdminPatientReviewSerializer(serializers.ModelSerializer):
     user_verified = serializers.BooleanField(source='user.is_verified', read_only=True)
     patient_verified = serializers.BooleanField(source='user.is_patient_verified', read_only=True)
     age = serializers.ReadOnlyField()
+    funding_received = serializers.ReadOnlyField(source='funding_received_actual')
     funding_percentage = serializers.ReadOnlyField()
     funding_remaining = serializers.ReadOnlyField()
     photo_url = serializers.SerializerMethodField()
