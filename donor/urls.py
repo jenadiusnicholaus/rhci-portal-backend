@@ -50,6 +50,7 @@ from .payments.yellowcard_views import (
     # Testing
     YellowCardSimulatePaymentView,
 )
+from .payments.yellowcard_collection_webhook import yellowcard_collection_webhook
 
 app_name = 'donor'
 
@@ -128,6 +129,9 @@ urlpatterns = [
     
     # Webhook (called by Yellow Card servers only)
     path('yellowcard/callback/', YellowCardCallbackView.as_view(), name='yellowcard_callback'),
+    
+    # Collection webhook (for COLLECTION.* events)
+    path('webhooks/yellowcard/collection/', yellowcard_collection_webhook, name='yellowcard_collection_webhook'),
     
     # Check payment status
     path('yellowcard/status/', YellowCardPaymentStatusView.as_view(), name='yellowcard_status'),

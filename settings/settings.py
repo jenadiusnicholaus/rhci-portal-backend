@@ -27,7 +27,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-&zsps#91mn%6w96huy_9&
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,185.237.253.223,192.168.1.132', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0,185.237.253.223,192.168.1.132', cast=Csv())
 
 
 # Application definition
@@ -412,6 +412,9 @@ else:
     RHCI_RECIPIENT_DOB = config('RHCI_PROD_RECIPIENT_DOB', default='')
     RHCI_RECIPIENT_ID_NUMBER = config('RHCI_PROD_RECIPIENT_ID_NUMBER', default='')
     RHCI_RECIPIENT_ID_TYPE = config('RHCI_PROD_RECIPIENT_ID_TYPE', default='passport')
+
+# Yellow Card webhook secret for signature verification
+YELLOWCARD_SECRET_KEY = YELLOW_CARD_API_SECRET
 
 # Timeout configuration (seconds)
 YELLOW_CARD_TIMEOUT_CONNECT = config('YELLOW_CARD_TIMEOUT_CONNECT', default=30, cast=int)
