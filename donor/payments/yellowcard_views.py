@@ -515,7 +515,18 @@ class YellowCardDonationBaseView(APIView):
             # Payment details from Yellow Card config
             channel_id = request.data.get('channel_id')
             network_id = request.data.get('network_id')  # Network ID from /config/
-            network_name = request.data.get('network_name', '')  # Network name (e.g., "AIRTELMONEYTZ", "VODACOM", "KCB")
+            network_name_raw = request.data.get('network_name', '')  # Network name (e.g., "AIRTELMONEYTZ", "VODACOM", "KCB")
+            
+            # Handle network_name - could be string or JSON object
+            if isinstance(network_name_raw, dict):
+                # If it's a dict (like {"Kahama Branch": "0", "Oystrebay Branch": "0"})
+                # Extract the bank name from the keys or use a default
+                bank_name = list(network_name_raw.keys())[0] if network_name_raw else 'Bank Transfer'
+                network_name = bank_name[:200]  # Limit to 200 characters
+            else:
+                # If it's already a string
+                network_name = str(network_name_raw)[:200] if network_name_raw else ''
+            
             account_type = request.data.get('account_type', 'momo')  # 'momo' for mobile money, 'bank' for bank transfer
             message = request.data.get('message', '')
             
