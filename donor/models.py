@@ -138,7 +138,7 @@ class Donation(models.Model):
     
     # Payment information
     payment_method = models.CharField(
-        max_length=100,
+        max_length=255,
         blank=True,
         help_text="Payment method used (e.g., card, mobile money)"
     )
