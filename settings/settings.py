@@ -421,7 +421,7 @@ YELLOWCARD_SECRET_KEY = YELLOW_CARD_API_SECRET
 # ============================================================================
 
 # Solana wallet address where donors send USDC (registered in the Pepea aggregator)
-STABLECOIN_COLLECTION_ADDRESS = config('STABLECOIN_COLLECTION_ADDRESS', default='ASiECMRmktWqAmbqmXDYxT6mnW4ZMu65gQEJ45GeZeii')
+STABLECOIN_COLLECTION_ADDRESS = config('STABLECOIN_COLLECTION_ADDRESS', default='L4j7wYzoZeTQdoq9hREzJqPxnHo5eobjm44chCoo5PY')
 
 # HMAC-SHA256 signing secret shared with the Pepea aggregator
 STABLECOIN_WEBHOOK_SECRET = config('STABLECOIN_WEBHOOK_SECRET', default='')

@@ -135,7 +135,7 @@ class StablecoinAnonymousDonationView(APIView):
             if error:
                 return Response(error, status=status.HTTP_400_BAD_REQUEST)
 
-            collection_address = getattr(settings, 'STABLECOIN_COLLECTION_ADDRESS', 'ASiECMRmktWqAmbqmXDYxT6mnW4ZMu65gQEJ45GeZeii')
+            collection_address = getattr(settings, 'STABLECOIN_COLLECTION_ADDRESS', 'L4j7wYzoZeTQdoq9hREzJqPxnHo5eobjm44chCoo5PY')
             logger.info(f'✅ Stablecoin donation {donation.id} created (anonymous) — {donation.amount} USDC')
 
             return Response({
@@ -179,7 +179,7 @@ class StablecoinAuthenticatedDonationView(APIView):
             if error:
                 return Response(error, status=status.HTTP_400_BAD_REQUEST)
 
-            collection_address = getattr(settings, 'STABLECOIN_COLLECTION_ADDRESS', 'ASiECMRmktWqAmbqmXDYxT6mnW4ZMu65gQEJ45GeZeii')
+            collection_address = getattr(settings, 'STABLECOIN_COLLECTION_ADDRESS', 'L4j7wYzoZeTQdoq9hREzJqPxnHo5eobjm44chCoo5PY')
             logger.info(f'✅ Stablecoin donation {donation.id} created (user {request.user.id}) — {donation.amount} USDC')
 
             return Response({
