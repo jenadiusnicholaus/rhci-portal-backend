@@ -103,11 +103,12 @@ class AzamPayCallbackView(APIView):
             result = azampay_service.process_callback(callback_data)
             
             external_id = result.get('external_id')
-            transaction_status = result.get('status', '').upper()
+            transaction_status = result.get('status', '')  # Don't convert to uppercase yet
             transaction_id = result.get('transaction_id')
             callback_amount = result.get('amount')
             
-            logger.info(f"Processed callback - External ID: {external_id}, Status: {transaction_status}, TxnID: {transaction_id}, Amount: {callback_amount}")
+            logger.info(f"Processed callback - External ID: {external_id}, Status: '{transaction_status}', TxnID: {transaction_id}, Amount: {callback_amount}")
+            logger.info(f"Raw callback data: {callback_data}")
             
             if not external_id:
                 logger.error("No external_id in callback")
@@ -147,101 +148,118 @@ class AzamPayCallbackView(APIView):
                 }, status=status.HTTP_404_NOT_FOUND)
             
             # Update donation based on status (with row-level locking to prevent race conditions)
-            with db_transaction.atomic():
-                # Fetch donation with lock to prevent concurrent updates
-                try:
-                    donation = Donation.objects.select_for_update().get(id=donation_id)
-                    logger.info(f"Found donation {donation.id} with current status: {donation.status}")
-                except Donation.DoesNotExist:
-                    logger.error(f"Donation with ID {donation_id} does not exist in database")
-                    return Response({
-                        'error': 'Donation not found',
-                        'details': f'Donation ID {donation_id} not found in database'
-                    }, status=status.HTTP_404_NOT_FOUND)
-                
-                # Extract additional payment details from callback
-                provider = result.get('provider')  # e.g., Mpesa, Airtel, Halopesa
-                mno_reference = result.get('mno_reference')  # Mobile network operator reference
-                msisdn = result.get('msisdn')  # Customer phone number
-                
-                # Validate callback amount matches donation amount (optional but recommended)
-                if callback_amount:
+            try:
+                with db_transaction.atomic():
+                    # Fetch donation with lock to prevent concurrent updates
                     try:
-                        from decimal import Decimal
-                        callback_amount_decimal = Decimal(str(callback_amount))
-                        # Allow small floating point differences (0.01 tolerance)
-                        if abs(callback_amount_decimal - donation.amount) > Decimal('0.01'):
-                            logger.error(f"⚠️  Amount mismatch - Donation: {donation.amount}, Callback: {callback_amount_decimal}")
-                            # Log but don't block - some gateways may have currency conversion
-                    except (ValueError, TypeError) as e:
-                        logger.warning(f"Could not validate callback amount: {e}")
-                
-                if transaction_status in ['SUCCESS', 'SUCCESSFUL', 'COMPLETED']:
-                    # CRITICAL: Check if donation already completed (prevent duplicate processing)
-                    if donation.status == 'COMPLETED':
-                        logger.warning(f"⚠️  Donation {donation.id} already completed - ignoring duplicate callback")
+                        donation = Donation.objects.select_for_update().get(id=donation_id)
+                        logger.info(f"Found donation {donation.id} with current status: {donation.status}")
+                    except Donation.DoesNotExist:
+                        logger.error(f"Donation with ID {donation_id} does not exist in database")
                         return Response({
-                            'success': True,
-                            'message': 'Donation already processed (duplicate callback ignored)',
-                            'donation': {
-                                'id': donation.id,
-                                'status': donation.status,
-                                'amount': str(donation.amount),
-                                'currency': donation.currency,
-                                'transaction_id': donation.transaction_id
-                            }
-                        }, status=status.HTTP_200_OK)
+                            'error': 'Donation not found',
+                            'details': f'Donation ID {donation_id} not found in database'
+                        }, status=status.HTTP_404_NOT_FOUND)
                     
-                    # Update donation status and timestamp
-                    donation.status = 'COMPLETED'
-                    donation.completed_at = timezone.now()
+                    # Extract additional payment details from callback
+                    provider = result.get('provider')  # e.g., Mpesa, Airtel, Halopesa
+                    mno_reference = result.get('mno_reference')  # Mobile network operator reference
+                    msisdn = result.get('msisdn')  # Customer phone number
                     
-                    # Update payment information
-                    if transaction_id:
-                        donation.transaction_id = transaction_id
-                    if provider:
-                        donation.payment_method = f"Mobile Money - {provider}"
-                    if not donation.payment_gateway:
-                        donation.payment_gateway = 'AzamPay'
+                    # Validate callback amount matches donation amount (optional but recommended)
+                    if callback_amount:
+                        try:
+                            from decimal import Decimal
+                            callback_amount_decimal = Decimal(str(callback_amount))
+                            # Allow small floating point differences (0.01 tolerance)
+                            if abs(callback_amount_decimal - donation.amount) > Decimal('0.01'):
+                                logger.error(f" Amount mismatch - Donation: {donation.amount}, Callback: {callback_amount_decimal}")
+                                # Log but don't block - some gateways may have currency conversion
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Could not validate callback amount: {e}")
                     
-                    # Save donation first
-                    donation.save()
-                    
-                    # Update patient status based on computed funding_received
-                    if donation.patient:
-                        patient = donation.patient
-                        if patient.funding_required == 0 or patient.funding_received >= patient.funding_required:
-                            patient.status = 'FULLY_FUNDED'
-                        patient.save()
-                        logger.info(f"✅ Patient {patient.id} funding: {patient.funding_received}/{patient.funding_required} ({patient.funding_percentage}%)")
-                    
-                    logger.info(f"✅ Donation {donation.id} completed successfully")
-                    logger.info(f"   - Total Amount: ${donation.amount}")
-                    logger.info(f"   - Patient Amount: ${donation.patient_amount or Decimal('0.00')}")
-                    logger.info(f"   - RHCI Support: ${donation.rhci_support_amount or Decimal('0.00')}")
-                    logger.info(f"   - Payment Method: {donation.payment_method}")
-                    logger.info(f"   - Transaction ID: {transaction_id}")
-                    logger.info(f"   - Provider: {provider}")
-                    
-                elif transaction_status in ['FAILED', 'FAILURE']:
-                    donation.status = 'FAILED'
-                    if transaction_id:
-                        donation.transaction_id = transaction_id
-                    donation.save()
-                    logger.warning(f"❌ Donation {donation.id} payment failed")
-                    
-                elif transaction_status in ['CANCELLED', 'CANCELED']:
-                    donation.status = 'CANCELLED'
-                    if transaction_id:
-                        donation.transaction_id = transaction_id
-                    donation.save()
-                    logger.info(f"⚠️  Donation {donation.id} cancelled")
-                else:
-                    logger.warning(f"Unknown status '{transaction_status}' for donation {donation.id}")
-                    # Still update transaction ID if provided
-                    if transaction_id:
-                        donation.transaction_id = transaction_id
+                    if transaction_status in ['SUCCESS', 'SUCCESSFUL', 'COMPLETED', 'success', 'successful', 'completed']:
+                        # CRITICAL: Check if donation already completed (prevent duplicate processing)
+                        if donation.status == 'COMPLETED':
+                            logger.warning(f" Donation {donation.id} already completed - ignoring duplicate callback")
+                            return Response({
+                                'success': True,
+                                'message': 'Donation already processed (duplicate callback ignored)',
+                                'donation': {
+                                    'id': donation.id,
+                                    'status': donation.status,
+                                    'amount': str(donation.amount),
+                                    'currency': donation.currency,
+                                    'transaction_id': donation.transaction_id
+                                }
+                            }, status=status.HTTP_200_OK)
+                        
+                        # Update donation status and timestamp
+                        donation.status = 'COMPLETED'
+                        donation.completed_at = timezone.now()
+                        
+                        # Update payment information
+                        if transaction_id:
+                            donation.transaction_id = transaction_id
+                        if provider:
+                            donation.payment_method = f"Mobile Money - {provider}"
+                        if not donation.payment_gateway:
+                            donation.payment_gateway = 'AzamPay'
+                        
+                        # Save donation first
                         donation.save()
+                        
+                        # Update patient status based on computed funding_received
+                        if donation.patient:
+                            patient = donation.patient
+                            if patient.funding_required == 0 or patient.funding_received >= patient.funding_required:
+                                patient.status = 'FULLY_FUNDED'
+                            patient.save()
+                            logger.info(f" Patient {patient.id} funding: {patient.funding_received}/{patient.funding_required} ({patient.funding_percentage}%)")
+                        
+                        logger.info(f" Donation {donation.id} completed successfully")
+                        logger.info(f"   - Total Amount: ${donation.amount}")
+                        logger.info(f"   - Patient Amount: ${donation.patient_amount or Decimal('0.00')}")
+                        logger.info(f"   - RHCI Support: ${donation.rhci_support_amount or Decimal('0.00')}")
+                        logger.info(f"   - Payment Method: {donation.payment_method}")
+                        logger.info(f"   - Transaction ID: {transaction_id}")
+                        logger.info(f"   - Provider: {provider}")
+                        
+                    elif transaction_status in ['FAILED', 'FAILURE', 'failed', 'failure']:
+                        donation.status = 'FAILED'
+                        if transaction_id:
+                            donation.transaction_id = transaction_id
+                        donation.save()
+                        logger.warning(f" Donation {donation.id} payment failed")
+                        
+                    elif transaction_status in ['CANCELLED', 'CANCELED', 'cancelled', 'canceled']:
+                        donation.status = 'CANCELLED'
+                        if transaction_id:
+                            donation.transaction_id = transaction_id
+                        donation.save()
+                        logger.info(f" Donation {donation.id} cancelled")
+                    else:
+                        logger.warning(f"Unknown status '{transaction_status}' for donation {donation.id}")
+                        # Still update transaction ID if provided
+                        if transaction_id:
+                            donation.transaction_id = transaction_id
+                            donation.save()
+                    
+                    # Transaction will automatically commit when exiting the 'with' block
+                    logger.info(f" Transaction committed successfully for donation {donation.id}")
+                    
+            except db_transaction.TransactionManagementError as e:
+                logger.error(f" Transaction management error for donation {donation_id}: {e}")
+                return Response({
+                    'error': 'Transaction error',
+                    'details': 'Failed to complete donation update due to transaction error'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            except Exception as e:
+                logger.error(f" Database error during callback processing: {e}")
+                return Response({
+                    'error': 'Database error',
+                    'details': 'Failed to update donation due to database error'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
             # Prepare response with updated information
             response_data = {
