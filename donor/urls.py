@@ -117,7 +117,7 @@ urlpatterns = [
     
     # ============ BILL PAY API (AZAM PAY - USSD/MOBILE MONEY) ============
     # Bill Pay API endpoints (called by AzamPay for USSD/Mobile Money donations)
-    path('', include('donor.payments.billpay_urls')),
+    path('billpay/', include('donor.payments.billpay_urls')),
     
     # ============ YELLOW CARD PAYMENT GATEWAY ============
     # Reference Data
