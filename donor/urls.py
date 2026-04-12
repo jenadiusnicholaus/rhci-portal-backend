@@ -51,6 +51,11 @@ from .payments.yellowcard_views import (
     YellowCardSimulatePaymentView,
 )
 from .payments.yellowcard_collection_webhook import yellowcard_collection_webhook
+from .payments.stablecoin_views import (
+    StablecoinAnonymousDonationView,
+    StablecoinAuthenticatedDonationView,
+)
+from .payments.stablecoin_webhook import StablecoinPaymentWebhookView
 
 app_name = 'donor'
 
@@ -138,4 +143,12 @@ urlpatterns = [
     
     # Testing only - simulate payment completion (disable in production!)
     path('yellowcard/simulate/', YellowCardSimulatePaymentView.as_view(), name='yellowcard_simulate'),
+
+    # ============ STABLECOIN (USDC / SOLANA) PAYMENT GATEWAY ============
+    # Donations
+    path('donate/usdc/patient/anonymous/', StablecoinAnonymousDonationView.as_view(), name='stablecoin_donate_anonymous'),
+    path('donate/usdc/patient/', StablecoinAuthenticatedDonationView.as_view(), name='stablecoin_donate'),
+
+    # Webhook (called by the Pepea aggregator when an on-chain payment is detected)
+    path('webhooks/stablecoin/payment/', StablecoinPaymentWebhookView.as_view(), name='stablecoin_payment_webhook'),
 ]

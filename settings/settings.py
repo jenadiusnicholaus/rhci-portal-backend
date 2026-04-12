@@ -416,6 +416,16 @@ else:
 # Yellow Card webhook secret for signature verification
 YELLOWCARD_SECRET_KEY = YELLOW_CARD_API_SECRET
 
+# ============================================================================
+# STABLECOIN (USDC / SOLANA) SETTINGS
+# ============================================================================
+
+# Solana wallet address where donors send USDC (registered in the Pepea aggregator)
+STABLECOIN_COLLECTION_ADDRESS = config('STABLECOIN_COLLECTION_ADDRESS', default='ASiECMRmktWqAmbqmXDYxT6mnW4ZMu65gQEJ45GeZeii')
+
+# HMAC-SHA256 signing secret shared with the Pepea aggregator
+STABLECOIN_WEBHOOK_SECRET = config('STABLECOIN_WEBHOOK_SECRET', default='')
+
 # Timeout configuration (seconds)
 YELLOW_CARD_TIMEOUT_CONNECT = config('YELLOW_CARD_TIMEOUT_CONNECT', default=30, cast=int)
 YELLOW_CARD_TIMEOUT_READ = config('YELLOW_CARD_TIMEOUT_READ', default=60, cast=int)
